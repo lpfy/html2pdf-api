@@ -1,0 +1,29 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Testing & Profiling
+*.profraw
+*.profdata
+/coverage/
+
+# Documentation build
+/doc/
+
+# Temporary files
+*.tmp
+*.temp
