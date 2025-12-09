@@ -8,7 +8,7 @@
 //!
 //! # Implementing Custom Health Checks
 //!
-//! While [`TrackedBrowser`](crate::TrackedBrowser) implements [`Healthcheck`]
+//! While `TrackedBrowser` implements [`Healthcheck`]
 //! by default, you can implement custom health check logic:
 //!
 //! ```rust,ignore

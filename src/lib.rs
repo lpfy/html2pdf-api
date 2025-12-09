@@ -49,7 +49,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use html2pdf_api::prelude::*;
 //! use std::time::Duration;
 //!
@@ -88,9 +88,9 @@
 //! ## Environment Configuration
 //!
 //! When the `env-config` feature is enabled, you can initialize the pool
-//! from environment variables:
+//! from environment variables (loaded from `app.env` file or system environment):
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use html2pdf_api::init_browser_pool;
 //!
 //! #[tokio::main]
@@ -99,6 +99,17 @@
 //!     // pool is Arc<Mutex<BrowserPool>>, ready for web handlers
 //!     Ok(())
 //! }
+//! ```
+//!
+//! ### Environment File
+//!
+//! Create an `app.env` file in your project root (not `.env` for better
+//! cross-platform visibility):
+//!
+//! ```text
+//! BROWSER_POOL_SIZE=5
+//! BROWSER_WARMUP_COUNT=3
+//! BROWSER_TTL_SECONDS=3600
 //! ```
 //!
 //! ### Environment Variables
@@ -127,7 +138,7 @@
 //!
 //! ### Actix-web
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use actix_web::{web, App, HttpServer};
 //! use html2pdf_api::prelude::*;
 //!
@@ -142,7 +153,7 @@
 //!
 //! ### Rocket
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use rocket::State;
 //! use html2pdf_api::prelude::*;
 //!
@@ -158,7 +169,7 @@
 //!
 //! ### Axum
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use axum::{Extension, response::IntoResponse};
 //! use html2pdf_api::prelude::*;
 //!
@@ -176,7 +187,7 @@
 //! All fallible operations return [`Result<T, BrowserPoolError>`](Result).
 //! The error type provides context about what went wrong:
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use html2pdf_api::{BrowserPool, BrowserPoolError};
 //!
 //! match pool.get() {
@@ -202,7 +213,7 @@
 //! For testing without Chrome, enable the `test-utils` feature and use
 //! [`MockBrowserFactory`](factory::mock::MockBrowserFactory):
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use html2pdf_api::factory::mock::MockBrowserFactory;
 //!
 //! let factory = MockBrowserFactory::always_fails("Test error");
@@ -281,7 +292,7 @@ pub use pool::init_browser_pool;
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use html2pdf_api::SharedBrowserPool;
 ///
 /// let pool: SharedBrowserPool = browser_pool.into_shared();

@@ -32,7 +32,7 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use html2pdf_api::{BrowserPool, BrowserPoolConfigBuilder, ChromeBrowserFactory};
 //!
 //! #[tokio::main]
@@ -762,7 +762,7 @@ impl BrowserPoolInner {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use html2pdf_api::{BrowserPool, BrowserPoolConfigBuilder, ChromeBrowserFactory};
 /// use std::time::Duration;
 ///
@@ -817,7 +817,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?
@@ -837,7 +837,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -864,7 +864,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let browser = pool.get()?;
     /// let tab = browser.new_tab()?;
     /// tab.navigate_to("https://example.com")?;
@@ -886,7 +886,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let stats = pool.stats();
     /// println!("Available: {}, Active: {}", stats.available, stats.active);
     /// ```
@@ -928,7 +928,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -1407,7 +1407,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let mut pool = /* ... */;
     ///
     /// // During application shutdown
@@ -1573,7 +1573,7 @@ impl Drop for BrowserPool {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use std::time::Duration;
 /// use html2pdf_api::{BrowserPool, BrowserPoolConfigBuilder, ChromeBrowserFactory};
 ///
@@ -1605,7 +1605,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let builder = BrowserPoolBuilder::new();
     /// ```
     pub fn new() -> Self {
@@ -1622,11 +1622,11 @@ impl BrowserPoolBuilder {
     ///
     /// # Parameters
     ///
-    /// * `config` - Validated configuration from [`BrowserPoolConfigBuilder`].
+    /// * `config` - Validated configuration from [`crate::BrowserPoolConfigBuilder`].
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let config = BrowserPoolConfigBuilder::new()
     ///     .max_pool_size(10)
     ///     .build()?;
@@ -1652,7 +1652,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -1673,7 +1673,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// // Disable for tests
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
@@ -1697,7 +1697,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -1769,7 +1769,7 @@ impl Default for BrowserPoolBuilder {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     env_logger::init();

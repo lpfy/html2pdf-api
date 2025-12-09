@@ -7,9 +7,9 @@
 //!
 //! | Framework | Feature Flag | Module |
 //! |-----------|--------------|--------|
-//! | Actix-web | `actix-integration` | [`actix`] |
-//! | Rocket | `rocket-integration` | [`rocket`] |
-//! | Axum | `axum-integration` | [`axum`] |
+//! | Actix-web | `actix-integration` | `actix` |
+//! | Rocket | `rocket-integration` | `rocket` |
+//! | Axum | `axum-integration` | `axum` |
 //!
 //! # Enabling Integrations
 //!

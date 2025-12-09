@@ -23,7 +23,7 @@
 //! # Environment Configuration
 //!
 //! When the `env-config` feature is enabled, you can load configuration
-//! from environment variables:
+//! from environment variables and an optional `app.env` file:
 //!
 //! ```rust,ignore
 //! use html2pdf_api::config::env::from_env;
@@ -31,7 +31,7 @@
 //! let config = from_env()?;
 //! ```
 //!
-//! See [`env`] module for available environment variables.
+//! See [`mod@env`] module for available environment variables.
 
 use std::time::Duration;
 
@@ -427,6 +427,7 @@ impl Default for BrowserPoolConfigBuilder {
         Self::new()
     }
 }
+
 // ============================================================================
 // Environment Configuration (feature-gated)
 // ============================================================================
@@ -434,6 +435,12 @@ impl Default for BrowserPoolConfigBuilder {
 /// Environment-based configuration loading.
 ///
 /// This module is only available when the `env-config` feature is enabled.
+///
+/// # Environment File
+///
+/// This module uses `dotenvy` to load environment variables from an `app.env`
+/// file in the current directory. The file is optional - if not found,
+/// environment variables and defaults are used.
 ///
 /// # Environment Variables
 ///
@@ -446,15 +453,68 @@ impl Default for BrowserPoolConfigBuilder {
 /// | `BROWSER_PING_INTERVAL_SECONDS` | u64 | 15 | Health check interval |
 /// | `BROWSER_MAX_PING_FAILURES` | u32 | 3 | Max ping failures |
 /// | `CHROME_PATH` | String | auto | Custom Chrome binary path |
+///
+/// # Example `app.env` File
+///
+/// ```text
+/// # Browser Pool Configuration
+/// BROWSER_POOL_SIZE=5
+/// BROWSER_WARMUP_COUNT=3
+/// BROWSER_TTL_SECONDS=3600
+/// BROWSER_WARMUP_TIMEOUT_SECONDS=60
+/// BROWSER_PING_INTERVAL_SECONDS=15
+/// BROWSER_MAX_PING_FAILURES=3
+///
+/// # Chrome Configuration (optional)
+/// # CHROME_PATH=/usr/bin/google-chrome
+/// ```
 #[cfg(feature = "env-config")]
 pub mod env {
     use super::*;
     use crate::error::BrowserPoolError;
 
+    /// Default environment file name.
+    pub const ENV_FILE_NAME: &str = "app.env";
+
+    /// Load environment variables from `app.env` file.
+    ///
+    /// Call this early in your application startup to ensure environment
+    /// variables are loaded before any configuration functions are called.
+    ///
+    /// This function is automatically called by [`from_env`], but you can
+    /// call it explicitly if you need to load the file earlier or check
+    /// for errors.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(PathBuf)` if the file was found and loaded successfully
+    /// - `Err(dotenvy::Error)` if the file was not found or couldn't be parsed
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use html2pdf_api::config::env::load_env_file;
+    ///
+    /// // Load at application startup
+    /// match load_env_file() {
+    ///     Ok(path) => println!("Loaded environment from: {:?}", path),
+    ///     Err(e) => println!("No app.env file found: {}", e),
+    /// }
+    /// ```
+    pub fn load_env_file() -> Result<std::path::PathBuf, dotenvy::Error> {
+        dotenvy::from_filename(ENV_FILE_NAME)
+    }
+
     /// Load configuration from environment variables.
     ///
     /// Reads configuration from environment variables with sensible defaults.
-    /// Also loads `.env` file if present (via `dotenv`).
+    /// Also loads `app.env` file if present (via `dotenvy`).
+    ///
+    /// # Environment File
+    ///
+    /// This function looks for an `app.env` file in the current directory
+    /// and loads it if present. The file is optional - if not found,
+    /// environment variables and defaults are used.
     ///
     /// # Environment Variables
     ///
@@ -481,40 +541,58 @@ pub mod env {
     /// assert_eq!(config.max_pool_size, 10);
     /// ```
     pub fn from_env() -> Result<BrowserPoolConfig, BrowserPoolError> {
-        let max_pool_size = dotenv::var("BROWSER_POOL_SIZE")
+        // Load app.env file if present (ignore errors if not found)
+        match load_env_file() {
+            Ok(path) => {
+                log::info!("� Loaded configuration from: {:?}", path);
+            }
+            Err(e) => {
+                log::debug!(
+                    "� No {} file found or failed to load: {} (using environment variables and defaults)",
+                    ENV_FILE_NAME,
+                    e
+                );
+            }
+        }
+
+        let max_pool_size = std::env::var("BROWSER_POOL_SIZE")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(5);
 
-        let warmup_count = dotenv::var("BROWSER_WARMUP_COUNT")
+        let warmup_count = std::env::var("BROWSER_WARMUP_COUNT")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(3);
 
-        let ttl_seconds = dotenv::var("BROWSER_TTL_SECONDS")
+        let ttl_seconds = std::env::var("BROWSER_TTL_SECONDS")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(3600u64);
 
-        let warmup_timeout_seconds = dotenv::var("BROWSER_WARMUP_TIMEOUT_SECONDS")
+        let warmup_timeout_seconds = std::env::var("BROWSER_WARMUP_TIMEOUT_SECONDS")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(60u64);
 
-        let ping_interval_seconds = dotenv::var("BROWSER_PING_INTERVAL_SECONDS")
+        let ping_interval_seconds = std::env::var("BROWSER_PING_INTERVAL_SECONDS")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(15u64);
 
-        let max_ping_failures = dotenv::var("BROWSER_MAX_PING_FAILURES")
+        let max_ping_failures = std::env::var("BROWSER_MAX_PING_FAILURES")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(3);
 
-        log::info!(" Loading pool configuration from environment:");
+        log::info!("' Loading pool configuration from environment:");
         log::info!("   - Max pool size: {}", max_pool_size);
         log::info!("   - Warmup count: {}", warmup_count);
-        log::info!("   - Browser TTL: {}s ({}min)", ttl_seconds, ttl_seconds / 60);
+        log::info!(
+            "   - Browser TTL: {}s ({}min)",
+            ttl_seconds,
+            ttl_seconds / 60
+        );
         log::info!("   - Warmup timeout: {}s", warmup_timeout_seconds);
         log::info!("   - Ping interval: {}s", ping_interval_seconds);
         log::info!("   - Max ping failures: {}", max_ping_failures);
@@ -534,6 +612,9 @@ pub mod env {
     ///
     /// Reads `CHROME_PATH` environment variable.
     ///
+    /// **Note:** Call [`from_env`] or [`load_env_file`] first to ensure
+    /// `app.env` is loaded if you're using a configuration file.
+    ///
     /// # Returns
     ///
     /// - `Some(path)` if `CHROME_PATH` is set
@@ -542,15 +623,18 @@ pub mod env {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use html2pdf_api::config::env::chrome_path_from_env;
+    /// use html2pdf_api::config::env::{load_env_file, chrome_path_from_env};
     ///
-    /// std::env::set_var("CHROME_PATH", "/usr/bin/google-chrome");
+    /// // Ensure app.env is loaded first
+    /// let _ = load_env_file();
     ///
     /// let path = chrome_path_from_env();
-    /// assert_eq!(path, Some("/usr/bin/google-chrome".to_string()));
+    /// if let Some(p) = path {
+    ///     println!("Using Chrome at: {}", p);
+    /// }
     /// ```
     pub fn chrome_path_from_env() -> Option<String> {
-        dotenv::var("CHROME_PATH").ok()
+        std::env::var("CHROME_PATH").ok()
     }
 }
 
@@ -587,9 +671,7 @@ mod tests {
     /// the validation catches this error at build time.
     #[test]
     fn test_config_validation() {
-        let result = BrowserPoolConfigBuilder::new()
-            .max_pool_size(0)
-            .build();
+        let result = BrowserPoolConfigBuilder::new().max_pool_size(0).build();
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err();
@@ -641,7 +723,10 @@ mod tests {
             Duration::from_secs(3600),
             "Default TTL should be 1 hour"
         );
-        assert_eq!(config.max_ping_failures, 3, "Default max failures should be 3");
+        assert_eq!(
+            config.max_ping_failures, 3,
+            "Default max failures should be 3"
+        );
         assert_eq!(
             config.warmup_timeout,
             Duration::from_secs(60),
