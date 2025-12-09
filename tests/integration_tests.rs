@@ -1,7 +1,5 @@
 //! Integration tests for the browser pool.
 
-mod common;
-
 use html2pdf_api::prelude::*;
 use std::time::Duration;
 

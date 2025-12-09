@@ -278,6 +278,7 @@ impl TrackedBrowser {
     ///     log::debug!("Last ping was {:?} ago", since_ping);
     /// }
     /// ```
+    #[allow(dead_code)]
     pub(crate) fn last_ping_time(&self) -> Option<Instant> {
         self.last_ping.lock().ok().map(|guard| *guard)
     }

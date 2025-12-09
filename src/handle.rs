@@ -261,7 +261,7 @@ impl std::fmt::Debug for BrowserHandle {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    //use super::*;
 
     /// Verifies that BrowserHandle exposes browser ID.
     #[test]

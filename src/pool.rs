@@ -69,7 +69,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use tokio::task::JoinHandle as TokioJoinHandle;
 
@@ -1538,6 +1538,7 @@ impl BrowserPool {
     ///
     /// This is primarily for internal use and testing.
     #[doc(hidden)]
+    #[allow(dead_code)]
     pub(crate) fn inner(&self) -> &Arc<BrowserPoolInner> {
         &self.inner
     }

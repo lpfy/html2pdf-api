@@ -16,6 +16,7 @@ exclude = [".github/*"]
 
 [features]
 default = []
+test-utils = []
 env-config = ["dep:dotenvy"]
 actix-integration = ["dep:actix-web", "env-config"]
 rocket-integration = ["dep:rocket", "env-config"]
@@ -36,6 +37,7 @@ tower = { version = "0.5", optional = true }
 tokio-test = "0.4"
 env_logger = "0.11"
 tokio = { version = "1", features = ["full"] }
+html2pdf-api = { path = ".", features = ["test-utils"] }
 
 [[example]]
 name = "actix_web_example"

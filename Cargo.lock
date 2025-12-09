@@ -1016,6 +1016,7 @@ dependencies = [
  "dotenvy",
  "env_logger",
  "headless_chrome",
+ "html2pdf-api",
  "log",
  "rocket",
  "thiserror",
