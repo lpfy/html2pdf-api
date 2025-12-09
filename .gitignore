@@ -2,6 +2,11 @@
 /target/
 **/*.rs.bk
 *.pdb
+Cargo.lock
+
+# Note: Cargo.lock is typically committed for binary crates but ignored for library crates.
+# Since html2pdf-api is a library, we ignore it.
+# However, some prefer to commit it - remove this line if you want to track it.
 
 # IDE / Editor
 .idea/
@@ -9,21 +14,54 @@
 *.swp
 *.swo
 *~
-.DS_Store
 *.iml
+.project
+.classpath
+.settings/
 
-# OS
-Thumbs.db
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Testing & Profiling
 *.profraw
 *.profdata
 /coverage/
+lcov.info
+tarpaulin-report.html
+cobertura.xml
 
 # Documentation build
 /doc/
+/target/doc/
 
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.orig
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Log files
+*.log
+logs/
+
+# Package files (if accidentally created)
+*.crate
+
+# Benchmark results
+/criterion/
+
+# Fuzzing
+/fuzz/target/
+/fuzz/corpus/
+/fuzz/artifacts/

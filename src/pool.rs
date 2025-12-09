@@ -1266,19 +1266,19 @@ impl BrowserPool {
 
                 // Check shutdown before cleanup (avoid work if shutting down)
                 if inner.is_shutting_down() {
-                    log::info!("� Shutdown detected before cleanup, skipping and exiting");
+                    log::info!("Shutdown detected before cleanup, skipping and exiting");
                     break;
                 }
 
                 // Handle TTL retirements first (they need replacement browsers)
                 if !expired_browsers.is_empty() {
-                    log::info!("{ Processing {} TTL-expired browsers", expired_browsers.len());
+                    log::info!("Processing {} TTL-expired browsers", expired_browsers.len());
                     Self::handle_browser_retirement(&inner, expired_browsers, &mut failure_counts);
                 }
 
                 // Handle failed browsers (remove from tracking and pool)
                 if !to_remove.is_empty() {
-                    log::warn!("� Removing {} failed browsers from pool", to_remove.len());
+                    log::warn!("Removing {} failed browsers from pool", to_remove.len());
 
                     // Track how many were actually removed so we know how many to replace
                     let mut actual_removed_count = 0;
@@ -1287,25 +1287,25 @@ impl BrowserPool {
                     for id in &to_remove {
                         if inner.remove_from_active(*id).is_some() {
                             actual_removed_count += 1;
-                            log::debug!("� Removed failed browser {} from active tracking", id);
+                            log::debug!("Removed failed browser {} from active tracking", id);
                         }
                         failure_counts.remove(id);
                     }
 
                     log::debug!(
-                        "� Active browsers after failure cleanup: {}",
+                        "Active browsers after failure cleanup: {}",
                         inner.active_count()
                     );
 
                     // Clean up pool (remove dead browsers)
                     inner.remove_from_available(&to_remove);
 
-                    log::debug!("� Pool size after cleanup: {}", inner.available_count());
+                    log::debug!("Pool size after cleanup: {}", inner.available_count());
 
                     // Trigger replacement for the browsers we just removed
                     if actual_removed_count > 0 {
                         log::info!(
-                            " Spawning {} replacement browsers for failed ones",
+                            "Spawning {} replacement browsers for failed ones",
                             actual_removed_count
                         );
                         BrowserPoolInner::spawn_replacement_creation(
@@ -1317,14 +1317,14 @@ impl BrowserPool {
 
                 // Log keep-alive cycle summary
                 log::debug!(
-                    "� Keep-alive cycle complete - Active: {}, Pooled: {}, Tracking {} failure states",
+                    "Keep-alive cycle complete - Active: {}, Pooled: {}, Tracking {} failure states",
                     inner.active_count(),
                     inner.available_count(),
                     failure_counts.len()
                 );
             }
 
-            log::info!("� Keep-alive thread exiting cleanly");
+            log::info!("Keep-alive thread exiting cleanly");
         })
     }
 
@@ -1350,7 +1350,7 @@ impl BrowserPool {
         failure_counts: &mut HashMap<u64, u32>,
     ) {
         log::info!(
-            "{ Retiring {} expired browsers (TTL enforcement)",
+            "Retiring {} expired browsers (TTL enforcement)",
             expired_ids.len()
         );
 
@@ -1359,7 +1359,7 @@ impl BrowserPool {
         for id in &expired_ids {
             if inner.remove_from_active(*id).is_some() {
                 retired_count += 1;
-                log::debug!("� Removed expired browser {} from active tracking", id);
+                log::debug!("Removed expired browser {} from active tracking", id);
             }
             // Clean up failure tracking
             failure_counts.remove(id);
@@ -1369,7 +1369,7 @@ impl BrowserPool {
         inner.remove_from_available(&expired_ids);
 
         log::debug!(
-            "� After retirement - Active: {}, Pooled: {}",
+            "After retirement - Active: {}, Pooled: {}",
             inner.active_count(),
             inner.available_count()
         );
@@ -1377,12 +1377,12 @@ impl BrowserPool {
         // Create replacement browsers to maintain target count
         if retired_count > 0 {
             log::info!(
-                " Spawning {} replacement browsers for retired ones",
+                "Spawning {} replacement browsers for retired ones",
                 retired_count
             );
             BrowserPoolInner::spawn_replacement_creation(Arc::clone(inner), retired_count);
         } else {
-            log::debug!("9 No browsers were actually retired (already removed)");
+            log::debug!("No browsers were actually retired (already removed)");
         }
     }
 
@@ -1414,11 +1414,11 @@ impl BrowserPool {
     /// pool.shutdown_async().await;
     /// ```
     pub async fn shutdown_async(&mut self) {
-        log::info!("� Shutting down browser pool (async mode)...");
+        log::info!("Shutting down browser pool (async mode)...");
 
         // Step 1: Set shutdown flag (prevents new operations)
         self.inner.set_shutting_down(true);
-        log::debug!(" Shutdown flag set");
+        log::debug!("Shutdown flag set");
 
         // Step 2: Signal condvar to wake keep-alive thread immediately
         // This is critical - without this, keep-alive waits for full ping_interval
@@ -1427,12 +1427,12 @@ impl BrowserPool {
             let mut shutdown = lock.lock().unwrap();
             *shutdown = true;
             cvar.notify_all();
-            log::debug!(" Shutdown signal sent to keep-alive thread");
+            log::debug!("Shutdown signal sent to keep-alive thread");
         } // Lock released here
 
         // Step 3: Wait for keep-alive thread to exit
         if let Some(handle) = self.keep_alive_handle.take() {
-            log::debug!("� Waiting for keep-alive thread to exit...");
+            log::debug!("Waiting for keep-alive thread to exit...");
 
             // Wrap thread join in spawn_blocking to make it async-friendly
             let join_task = tokio::task::spawn_blocking(move || handle.join());
@@ -1440,29 +1440,29 @@ impl BrowserPool {
             // Give it 5 seconds to exit gracefully
             match tokio::time::timeout(Duration::from_secs(5), join_task).await {
                 Ok(Ok(Ok(_))) => {
-                    log::info!(" Keep-alive thread stopped cleanly");
+                    log::info!("Keep-alive thread stopped cleanly");
                 }
                 Ok(Ok(Err(_))) => {
-                    log::error!("L Keep-alive thread panicked during shutdown");
+                    log::error!("Keep-alive thread panicked during shutdown");
                 }
                 Ok(Err(_)) => {
-                    log::error!("L Keep-alive join task panicked");
+                    log::error!("Keep-alive join task panicked");
                 }
                 Err(_) => {
-                    log::error!("L Keep-alive thread didn't exit within 5s timeout");
+                    log::error!("Keep-alive thread didn't exit within 5s timeout");
                 }
             }
         } else {
-            log::debug!("9 No keep-alive thread to stop (was disabled or already stopped)");
+            log::debug!("No keep-alive thread to stop (was disabled or already stopped)");
         }
 
         // Step 4: Abort all replacement creation tasks
-        log::info!("� Aborting replacement creation tasks...");
+        log::info!("Aborting replacement creation tasks...");
         let aborted_count = self.inner.abort_replacement_tasks();
         if aborted_count > 0 {
-            log::info!(" Aborted {} replacement tasks", aborted_count);
+            log::info!("Aborted {} replacement tasks", aborted_count);
         } else {
-            log::debug!(" No replacement tasks to abort");
+            log::debug!("No replacement tasks to abort");
         }
 
         // Step 5: Small delay to let aborted tasks clean up
@@ -1471,7 +1471,7 @@ impl BrowserPool {
         // Step 6: Log final statistics
         let stats = self.stats();
         log::info!(
-            "P Async shutdown complete - Available: {}, Active: {}, Total: {}",
+            "Async shutdown complete - Available: {}, Active: {}, Total: {}",
             stats.available,
             stats.active,
             stats.total
@@ -1489,17 +1489,17 @@ impl BrowserPool {
     /// there's no async runtime available. Tasks are aborted but may not
     /// have cleaned up yet.
     pub fn shutdown(&mut self) {
-        log::debug!("� Calling synchronous shutdown...");
+        log::debug!("Calling synchronous shutdown...");
         self.shutdown_sync();
     }
 
     /// Internal synchronous shutdown implementation.
     fn shutdown_sync(&mut self) {
-        log::info!("� Shutting down browser pool (sync mode)...");
+        log::info!("Shutting down browser pool (sync mode)...");
 
         // Set shutdown flag
         self.inner.set_shutting_down(true);
-        log::debug!(" Shutdown flag set");
+        log::debug!("Shutdown flag set");
 
         // Signal condvar (same as async version)
         {
@@ -1507,28 +1507,28 @@ impl BrowserPool {
             let mut shutdown = lock.lock().unwrap();
             *shutdown = true;
             cvar.notify_all();
-            log::debug!(" Shutdown signal sent");
+            log::debug!("Shutdown signal sent");
         }
 
         // Wait for keep-alive thread
         if let Some(handle) = self.keep_alive_handle.take() {
-            log::debug!("� Joining keep-alive thread (sync)...");
+            log::debug!("Joining keep-alive thread (sync)...");
 
             match handle.join() {
-                Ok(_) => log::info!(" Keep-alive thread stopped"),
-                Err(_) => log::error!("L Keep-alive thread panicked"),
+                Ok(_) => log::info!("Keep-alive thread stopped"),
+                Err(_) => log::error!("Keep-alive thread panicked"),
             }
         }
 
         // Abort replacement tasks (best effort - they won't make progress without runtime)
         let aborted_count = self.inner.abort_replacement_tasks();
         if aborted_count > 0 {
-            log::debug!("� Aborted {} replacement tasks (sync mode)", aborted_count);
+            log::debug!("Aborted {} replacement tasks (sync mode)", aborted_count);
         }
 
         let stats = self.stats();
         log::info!(
-            "P Sync shutdown complete - Available: {}, Active: {}",
+            "Sync shutdown complete - Available: {}, Active: {}",
             stats.available,
             stats.active
         );
