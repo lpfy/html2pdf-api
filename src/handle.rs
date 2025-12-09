@@ -208,7 +208,7 @@ impl std::ops::Deref for BrowserHandle {
     /// This should never happen in normal usage since the handle owns
     /// the browser until it's dropped.
     fn deref(&self) -> &Self::Target {
-        &self.tracked.as_ref().unwrap().browser()
+        self.tracked.as_ref().unwrap().browser()
     }
 }
 
