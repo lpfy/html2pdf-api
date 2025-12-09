@@ -10,7 +10,7 @@
 use html2pdf_api::prelude::*;
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
-use rocket::{get, launch, routes, State};
+use rocket::{State, get, launch, routes};
 use std::io::Cursor;
 use std::time::Duration;
 

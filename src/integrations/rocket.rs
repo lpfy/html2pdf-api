@@ -145,8 +145,8 @@
 
 use rocket::State;
 
-use crate::pool::BrowserPool;
 use crate::SharedBrowserPool;
+use crate::pool::BrowserPool;
 
 /// Type alias for Rocket `State` wrapper around the shared pool.
 ///

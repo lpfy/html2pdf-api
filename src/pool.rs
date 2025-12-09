@@ -156,7 +156,10 @@ impl BrowserPoolInner {
     ///
     /// Panics if called outside a tokio runtime context.
     pub(crate) fn new(config: BrowserPoolConfig, factory: Box<dyn BrowserFactory>) -> Arc<Self> {
-        log::info!(" Initializing browser pool with capacity {}", config.max_pool_size);
+        log::info!(
+            " Initializing browser pool with capacity {}",
+            config.max_pool_size
+        );
         log::debug!(
             " Pool config: warmup={}, TTL={}s, ping_interval={}s",
             config.warmup_count,
@@ -308,7 +311,8 @@ impl BrowserPoolInner {
                         );
 
                         // Test navigation capability (full health check)
-                        match tab.navigate_to("data:text/html,<html><body>Health check</body></html>")
+                        match tab
+                            .navigate_to("data:text/html,<html><body>Health check</body></html>")
                         {
                             Ok(_) => {
                                 log::trace!(
@@ -420,7 +424,10 @@ impl BrowserPoolInner {
 
         // Early exit if shutting down (don't waste time managing pool)
         if self_arc.shutting_down.load(Ordering::Acquire) {
-            log::debug!(" Pool shutting down, not returning browser {}", tracked.id());
+            log::debug!(
+                " Pool shutting down, not returning browser {}",
+                tracked.id()
+            );
             return;
         }
 
@@ -515,7 +522,10 @@ impl BrowserPoolInner {
     /// * `inner` - Arc reference to pool state.
     /// * `count` - Number of browsers to attempt to create.
     async fn spawn_replacement_creation_async(inner: Arc<Self>, count: usize) {
-        log::info!(" Starting async replacement creation for {} browsers", count);
+        log::info!(
+            " Starting async replacement creation for {} browsers",
+            count
+        );
 
         let mut created_count = 0;
         let mut failed_count = 0;
@@ -558,8 +568,8 @@ impl BrowserPoolInner {
             // Use spawn_blocking for CPU-bound browser creation
             // This prevents blocking the async runtime
             let inner_clone = Arc::clone(&inner);
-            let result = tokio::task::spawn_blocking(move || inner_clone.create_browser_direct())
-                .await;
+            let result =
+                tokio::task::spawn_blocking(move || inner_clone.create_browser_direct()).await;
 
             match result {
                 Ok(Ok(tracked)) => {
@@ -640,7 +650,10 @@ impl BrowserPoolInner {
     /// * `inner` - Arc reference to pool state.
     /// * `count` - Number of replacement browsers to create.
     pub(crate) fn spawn_replacement_creation(inner: Arc<Self>, count: usize) {
-        log::info!(" Spawning async task to create {} replacement browsers", count);
+        log::info!(
+            " Spawning async task to create {} replacement browsers",
+            count
+        );
 
         // Clone Arc for moving into async task
         let inner_for_task = Arc::clone(&inner);
@@ -709,7 +722,10 @@ impl BrowserPoolInner {
     /// Returns a cloned list to avoid holding locks during I/O.
     pub(crate) fn get_active_browsers_snapshot(&self) -> Vec<(u64, TrackedBrowser)> {
         let active = self.active.lock().unwrap();
-        active.iter().map(|(id, tracked)| (*id, tracked.clone())).collect()
+        active
+            .iter()
+            .map(|(id, tracked)| (*id, tracked.clone()))
+            .collect()
     }
 
     /// Remove a browser from active tracking.
@@ -947,8 +963,7 @@ impl BrowserPool {
         );
 
         // Wrap entire warmup in timeout to prevent hanging forever
-        let warmup_result =
-            tokio::time::timeout(warmup_timeout, self.warmup_internal(count)).await;
+        let warmup_result = tokio::time::timeout(warmup_timeout, self.warmup_internal(count)).await;
 
         match warmup_result {
             Ok(Ok(())) => {
@@ -1013,10 +1028,7 @@ impl BrowserPool {
                     // Test the browser with actual navigation
                     match tracked.browser().new_tab() {
                         Ok(tab) => {
-                            log::trace!(
-                                "✅ Browser {} test: new_tab() successful",
-                                tracked.id()
-                            );
+                            log::trace!("✅ Browser {} test: new_tab() successful", tracked.id());
 
                             // Navigate to test page
                             let nav_result = tab.navigate_to(
@@ -1229,10 +1241,7 @@ impl BrowserPool {
                         Ok(_) => {
                             // Reset failure count on success
                             if failure_counts.remove(&id).is_some() {
-                                log::debug!(
-                                    "Browser {} ping successful, failure count reset",
-                                    id
-                                );
+                                log::debug!("Browser {} ping successful, failure count reset", id);
                             }
                         }
                         Err(e) => {
@@ -1786,7 +1795,7 @@ pub async fn init_browser_pool() -> Result<Arc<Mutex<BrowserPool>>> {
     use crate::config::env::{chrome_path_from_env, from_env};
     use crate::factory::ChromeBrowserFactory;
 
-    log::info!(" Initializing browser pool from environment...");
+    log::info!("Initializing browser pool from environment...");
 
     // Load configuration from environment
     let config = from_env()?;
@@ -1794,7 +1803,7 @@ pub async fn init_browser_pool() -> Result<Arc<Mutex<BrowserPool>>> {
     // Get optional Chrome path
     let chrome_path = chrome_path_from_env();
 
-    log::info!(" Pool configuration from environment:");
+    log::info!("Pool configuration from environment:");
     log::info!("   - Max pool size: {}", config.max_pool_size);
     log::info!("   - Warmup count: {}", config.warmup_count);
     log::info!(
@@ -1811,17 +1820,17 @@ pub async fn init_browser_pool() -> Result<Arc<Mutex<BrowserPool>>> {
     // Create factory based on whether custom path is provided
     let factory: Box<dyn BrowserFactory> = match chrome_path {
         Some(path) => {
-            log::info!(" Using custom Chrome path: {}", path);
+            log::info!("Using custom Chrome path: {}", path);
             Box::new(ChromeBrowserFactory::with_path(path))
         }
         None => {
-            log::info!(" Using auto-detected Chrome browser");
+            log::info!("Using auto-detected Chrome browser");
             Box::new(ChromeBrowserFactory::with_defaults())
         }
     };
 
     // Create browser pool with Chrome factory
-    log::debug!("️ Building browser pool...");
+    log::debug!("Building browser pool...");
     let pool = BrowserPool::builder()
         .config(config.clone())
         .factory(factory)
@@ -1836,7 +1845,7 @@ pub async fn init_browser_pool() -> Result<Arc<Mutex<BrowserPool>>> {
 
     // Warmup the pool
     log::info!(
-        " Warming up browser pool with {} instances...",
+        "Warming up browser pool with {} instances...",
         config.warmup_count
     );
     pool.warmup().await.map_err(|e| {
@@ -1871,7 +1880,7 @@ mod tests {
     fn test_pool_builder_missing_factory() {
         // We need a tokio runtime for the builder
         let rt = tokio::runtime::Runtime::new().unwrap();
-        
+
         rt.block_on(async {
             let config = crate::config::BrowserPoolConfigBuilder::new()
                 .max_pool_size(3)

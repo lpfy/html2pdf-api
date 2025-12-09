@@ -8,11 +8,11 @@
 //! Then visit: http://localhost:3000/pdf
 
 use axum::{
+    Json, Router,
     extract::State,
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     response::IntoResponse,
     routing::get,
-    Json, Router,
 };
 use html2pdf_api::prelude::*;
 use std::sync::Arc;

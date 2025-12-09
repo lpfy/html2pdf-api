@@ -228,8 +228,8 @@
 
 use axum::extract::State;
 
-use crate::pool::BrowserPool;
 use crate::SharedBrowserPool;
+use crate::pool::BrowserPool;
 
 /// Type alias for Axum `State` extractor with the shared pool.
 ///

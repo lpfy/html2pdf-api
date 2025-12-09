@@ -22,13 +22,13 @@
 //! let factory = MockBrowserFactory::fail_after_n(3, "Resource exhausted");
 //! ```
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use headless_chrome::Browser;
 
-use crate::error::{BrowserPoolError, Result};
 use super::BrowserFactory;
+use crate::error::{BrowserPoolError, Result};
 
 /// Mock browser factory for testing without Chrome.
 ///
@@ -220,10 +220,7 @@ impl BrowserFactory for MockBrowserFactory {
         // Check if we should fail after N creations
         if let Some(fail_after) = self.fail_after {
             if count >= fail_after {
-                log::debug!(
-                    "MockBrowserFactory: Failing after {} creations",
-                    fail_after
-                );
+                log::debug!("MockBrowserFactory: Failing after {} creations", fail_after);
                 return Err(BrowserPoolError::BrowserCreation(
                     self.error_message.clone(),
                 ));
@@ -231,7 +228,10 @@ impl BrowserFactory for MockBrowserFactory {
         }
 
         // Attempt real browser creation
-        log::debug!("MockBrowserFactory: Attempting real browser creation #{}", count + 1);
+        log::debug!(
+            "MockBrowserFactory: Attempting real browser creation #{}",
+            count + 1
+        );
 
         use super::chrome::create_chrome_options;
 
@@ -250,7 +250,10 @@ impl std::fmt::Debug for MockBrowserFactory {
         f.debug_struct("MockBrowserFactory")
             .field("should_fail", &self.should_fail)
             .field("error_message", &self.error_message)
-            .field("creation_count", &self.creation_count.load(Ordering::SeqCst))
+            .field(
+                "creation_count",
+                &self.creation_count.load(Ordering::SeqCst),
+            )
             .field("fail_after", &self.fail_after)
             .finish()
     }

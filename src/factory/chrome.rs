@@ -24,8 +24,8 @@
 
 use headless_chrome::{Browser, LaunchOptions};
 
-use crate::error::{BrowserPoolError, Result};
 use super::BrowserFactory;
+use crate::error::{BrowserPoolError, Result};
 
 /// Factory for creating Chrome/Chromium browser instances.
 ///
@@ -109,8 +109,7 @@ impl ChromeBrowserFactory {
     pub fn with_defaults() -> Self {
         log::debug!(" Creating ChromeBrowserFactory with auto-detect");
         Self::new(|| {
-            create_chrome_options(None)
-                .map_err(|e| BrowserPoolError::Configuration(e.to_string()))
+            create_chrome_options(None).map_err(|e| BrowserPoolError::Configuration(e.to_string()))
         })
     }
 
@@ -141,7 +140,10 @@ impl ChromeBrowserFactory {
     /// );
     /// ```
     pub fn with_path(chrome_path: String) -> Self {
-        log::debug!(" Creating ChromeBrowserFactory with custom path: {}", chrome_path);
+        log::debug!(
+            " Creating ChromeBrowserFactory with custom path: {}",
+            chrome_path
+        );
         Self::new(move || {
             create_chrome_options(Some(&chrome_path))
                 .map_err(|e| BrowserPoolError::Configuration(e.to_string()))
@@ -166,11 +168,10 @@ impl BrowserFactory for ChromeBrowserFactory {
 
         // Launch browser
         log::debug!(" Launching Chrome browser...");
-        Browser::new(options)
-            .map_err(|e| {
-                log::error!("❌ Chrome launch failed: {}", e);
-                BrowserPoolError::BrowserCreation(e.to_string())
-            })
+        Browser::new(options).map_err(|e| {
+            log::error!("❌ Chrome launch failed: {}", e);
+            BrowserPoolError::BrowserCreation(e.to_string())
+        })
     }
 }
 
@@ -239,9 +240,8 @@ impl BrowserFactory for ChromeBrowserFactory {
 /// let options = create_chrome_options(Some("/usr/bin/chromium"))?;
 /// ```
 pub fn create_chrome_options(
-    chrome_path: Option<&str>
+    chrome_path: Option<&str>,
 ) -> std::result::Result<LaunchOptions<'static>, Box<dyn std::error::Error + Send + Sync>> {
-
     match chrome_path {
         Some(path) => log::debug!(" Creating Chrome options with custom path: {}", path),
         None => log::debug!(" Creating Chrome options (auto-detect browser)"),
@@ -259,15 +259,14 @@ pub fn create_chrome_options(
 
     // Configure launch options for stable headless operation
     builder
-        .headless(true)  // Run in headless mode
-        .sandbox(false)  // Disable sandbox (required in containers)
-        .disable_default_args(true)  // Use our custom args only
+        .headless(true) // Run in headless mode
+        .sandbox(false) // Disable sandbox (required in containers)
+        .disable_default_args(true) // Use our custom args only
         .args(vec![
             // ===== Memory and Performance Optimization =====
-            "--disable-dev-shm-usage".as_ref(),  // Use /tmp instead of /dev/shm (container-friendly)
-            "--disable-crash-reporter".as_ref(),  // No crash reporting
-            "--max_old_space_size=1024".as_ref(),  // Limit V8 heap to 1GB
-
+            "--disable-dev-shm-usage".as_ref(), // Use /tmp instead of /dev/shm (container-friendly)
+            "--disable-crash-reporter".as_ref(), // No crash reporting
+            "--max_old_space_size=1024".as_ref(), // Limit V8 heap to 1GB
             // ===== GPU and Rendering Flags =====
             // Disable GPU features for headless stability
             "--disable-gpu-compositing".as_ref(),
@@ -276,35 +275,33 @@ pub fn create_chrome_options(
             "--disable-gl-drawing-for-tests".as_ref(),
             "--disable-webgl".as_ref(),
             "--disable-webgl2".as_ref(),
-
             // ===== Disable Unnecessary Features =====
-            "--disable-extensions".as_ref(),  // No browser extensions
-            "--disable-plugins".as_ref(),  // No plugins
-            "--disable-sync".as_ref(),  // No Chrome sync
-            "--disable-default-apps".as_ref(),  // No default apps
-
+            "--disable-extensions".as_ref(), // No browser extensions
+            "--disable-plugins".as_ref(),    // No plugins
+            "--disable-sync".as_ref(),       // No Chrome sync
+            "--disable-default-apps".as_ref(), // No default apps
             // ===== Security and Functionality =====
-            "--disable-web-security".as_ref(),  // Allow cross-origin requests (for scraping)
-
+            "--disable-web-security".as_ref(), // Allow cross-origin requests (for scraping)
             // ===== Automation and Debugging =====
-            "--enable-automation".as_ref(),  // Mark as automated browser
-
+            "--enable-automation".as_ref(), // Mark as automated browser
             // ===== Stability and Performance =====
-            "--disable-background-timer-throttling".as_ref(),  // Don't throttle background tabs
-            "--disable-backgrounding-occluded-windows".as_ref(),  // Don't suspend hidden windows
-            "--disable-hang-monitor".as_ref(),  // Disable hang detection
-
+            "--disable-background-timer-throttling".as_ref(), // Don't throttle background tabs
+            "--disable-backgrounding-occluded-windows".as_ref(), // Don't suspend hidden windows
+            "--disable-hang-monitor".as_ref(),                // Disable hang detection
             // ===== UI Flags =====
-            "--disable-popup-blocking".as_ref(),  // Allow popups
-
+            "--disable-popup-blocking".as_ref(), // Allow popups
             // ===== Better CDP (Chrome DevTools Protocol) Stability =====
-            "--disable-renderer-backgrounding".as_ref(),  // Don't deprioritize renderer
-            "--disable-ipc-flooding-protection".as_ref(),  // Allow rapid IPC messages
+            "--disable-renderer-backgrounding".as_ref(), // Don't deprioritize renderer
+            "--disable-ipc-flooding-protection".as_ref(), // Allow rapid IPC messages
         ])
         .build()
         .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
             let path_msg = chrome_path.unwrap_or("auto-detect");
-            log::error!("❌ Failed to build Chrome launch options (path: {}): {}", path_msg, e);
+            log::error!(
+                "❌ Failed to build Chrome launch options (path: {}): {}",
+                path_msg,
+                e
+            );
             e.into()
         })
 }

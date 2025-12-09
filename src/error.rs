@@ -248,10 +248,16 @@ mod tests {
     #[test]
     fn test_error_display() {
         let error = BrowserPoolError::BrowserCreation("chrome not found".to_string());
-        assert_eq!(error.to_string(), "Failed to create browser: chrome not found");
+        assert_eq!(
+            error.to_string(),
+            "Failed to create browser: chrome not found"
+        );
 
         let error = BrowserPoolError::HealthCheckFailed("ping failed".to_string());
-        assert_eq!(error.to_string(), "Browser health check failed: ping failed");
+        assert_eq!(
+            error.to_string(),
+            "Browser health check failed: ping failed"
+        );
 
         let error = BrowserPoolError::ShuttingDown;
         assert_eq!(error.to_string(), "Pool is shutting down");

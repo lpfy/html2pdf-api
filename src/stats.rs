@@ -203,7 +203,10 @@ mod tests {
             total: 8,
         };
 
-        assert_eq!(stats.available, 5, "Available browsers should be accessible");
+        assert_eq!(
+            stats.available, 5,
+            "Available browsers should be accessible"
+        );
         assert_eq!(stats.active, 3, "Active browsers should be accessible");
         assert_eq!(stats.total, 8, "Total browsers should be accessible");
     }

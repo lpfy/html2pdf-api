@@ -132,8 +132,8 @@
 use actix_web::web;
 use std::sync::Arc;
 
-use crate::pool::BrowserPool;
 use crate::SharedBrowserPool;
+use crate::pool::BrowserPool;
 
 /// Type alias for Actix-web `Data` wrapper around the shared pool.
 ///

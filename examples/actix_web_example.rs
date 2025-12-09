@@ -7,7 +7,7 @@
 //!
 //! Then visit: http://localhost:8080/pdf
 
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{App, HttpResponse, HttpServer, Responder, web};
 use html2pdf_api::prelude::*;
 use std::sync::Arc;
 use std::time::Duration;
@@ -69,7 +69,10 @@ async fn generate_pdf(pool: web::Data<SharedBrowserPool>) -> impl Responder {
     // Return PDF response
     HttpResponse::Ok()
         .content_type("application/pdf")
-        .insert_header(("Content-Disposition", "attachment; filename=\"example.pdf\""))
+        .insert_header((
+            "Content-Disposition",
+            "attachment; filename=\"example.pdf\"",
+        ))
         .body(pdf_data)
 }
 

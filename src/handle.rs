@@ -170,10 +170,7 @@ impl BrowserHandle {
     /// log::debug!("Browser age: {:?}", browser.age());
     /// ```
     pub fn age(&self) -> std::time::Duration {
-        self.tracked
-            .as_ref()
-            .map(|t| t.age())
-            .unwrap_or_default()
+        self.tracked.as_ref().map(|t| t.age()).unwrap_or_default()
     }
 
     /// Get the browser's age in minutes.

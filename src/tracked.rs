@@ -337,7 +337,8 @@ impl Healthcheck for TrackedBrowser {
                 // Poisoned lock - log but don't fail the health check
                 log::warn!(
                     "⚠️ Browser {} ping succeeded but failed to update timestamp: {}",
-                    self.id, e
+                    self.id,
+                    e
                 );
             }
         }
@@ -404,10 +405,10 @@ mod tests {
         assert_eq!(minutes, 61);
 
         // Test edge cases
-        assert_eq!(59u64 / 60, 0);   // Less than a minute
-        assert_eq!(60u64 / 60, 1);   // Exactly one minute
-        assert_eq!(119u64 / 60, 1);  // Just under two minutes
-        assert_eq!(120u64 / 60, 2);  // Exactly two minutes
+        assert_eq!(59u64 / 60, 0); // Less than a minute
+        assert_eq!(60u64 / 60, 1); // Exactly one minute
+        assert_eq!(119u64 / 60, 1); // Just under two minutes
+        assert_eq!(120u64 / 60, 2); // Exactly two minutes
     }
 
     /// Verifies that is_expired returns correct values.

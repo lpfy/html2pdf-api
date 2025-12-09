@@ -55,6 +55,7 @@
 //! ```
 
 // Core types
+pub use crate::SharedBrowserPool;
 pub use crate::config::{BrowserPoolConfig, BrowserPoolConfigBuilder};
 pub use crate::error::{BrowserPoolError, Result};
 pub use crate::factory::{BrowserFactory, ChromeBrowserFactory};
@@ -62,7 +63,6 @@ pub use crate::handle::BrowserHandle;
 pub use crate::pool::{BrowserPool, BrowserPoolBuilder};
 pub use crate::stats::PoolStats;
 pub use crate::traits::Healthcheck;
-pub use crate::SharedBrowserPool;
 
 // Feature-gated exports
 #[cfg(feature = "env-config")]
