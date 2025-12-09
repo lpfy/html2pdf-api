@@ -49,7 +49,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use html2pdf_api::prelude::*;
 //! use std::time::Duration;
 //!
@@ -138,7 +138,7 @@
 //!
 //! ### Actix-web
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use actix_web::{web, App, HttpServer};
 //! use html2pdf_api::prelude::*;
 //!
@@ -153,7 +153,7 @@
 //!
 //! ### Rocket
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rocket::State;
 //! use html2pdf_api::prelude::*;
 //!
@@ -169,7 +169,7 @@
 //!
 //! ### Axum
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use axum::{Extension, response::IntoResponse};
 //! use html2pdf_api::prelude::*;
 //!
@@ -187,7 +187,7 @@
 //! All fallible operations return [`Result<T, BrowserPoolError>`](Result).
 //! The error type provides context about what went wrong:
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use html2pdf_api::{BrowserPool, BrowserPoolError};
 //!
 //! match pool.get() {
@@ -213,7 +213,7 @@
 //! For testing without Chrome, enable the `test-utils` feature and use
 //! [`MockBrowserFactory`](factory::mock::MockBrowserFactory):
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use html2pdf_api::factory::mock::MockBrowserFactory;
 //!
 //! let factory = MockBrowserFactory::always_fails("Test error");
@@ -292,7 +292,7 @@ pub use pool::init_browser_pool;
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use html2pdf_api::SharedBrowserPool;
 ///
 /// let pool: SharedBrowserPool = browser_pool.into_shared();

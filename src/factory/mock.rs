@@ -211,7 +211,7 @@ impl BrowserFactory for MockBrowserFactory {
 
         // Check if configured to always fail
         if self.should_fail {
-            log::debug!("離 MockBrowserFactory: Returning configured failure");
+            log::debug!("MockBrowserFactory: Returning configured failure");
             return Err(BrowserPoolError::BrowserCreation(
                 self.error_message.clone(),
             ));
@@ -221,7 +221,7 @@ impl BrowserFactory for MockBrowserFactory {
         if let Some(fail_after) = self.fail_after {
             if count >= fail_after {
                 log::debug!(
-                    "離 MockBrowserFactory: Failing after {} creations",
+                    "MockBrowserFactory: Failing after {} creations",
                     fail_after
                 );
                 return Err(BrowserPoolError::BrowserCreation(
@@ -231,7 +231,7 @@ impl BrowserFactory for MockBrowserFactory {
         }
 
         // Attempt real browser creation
-        log::debug!("離 MockBrowserFactory: Attempting real browser creation #{}", count + 1);
+        log::debug!("MockBrowserFactory: Attempting real browser creation #{}", count + 1);
 
         use super::chrome::create_chrome_options;
 
@@ -239,7 +239,7 @@ impl BrowserFactory for MockBrowserFactory {
             .map_err(|e| BrowserPoolError::Configuration(e.to_string()))?;
 
         Browser::new(options).map_err(|e| {
-            log::error!("離 MockBrowserFactory: Real browser creation failed: {}", e);
+            log::error!("MockBrowserFactory: Real browser creation failed: {}", e);
             BrowserPoolError::BrowserCreation(e.to_string())
         })
     }

@@ -15,7 +15,7 @@ categories = ["web-programming", "concurrency", "asynchronous"]
 exclude = [".github/*"]
 
 [features]
-default = []
+default = ["env-config"]
 test-utils = []
 env-config = ["dep:dotenvy"]
 actix-integration = ["dep:actix-web", "env-config"]

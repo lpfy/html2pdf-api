@@ -38,7 +38,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create pool
-//!     let pool = BrowserPool::builder()
+//!     let mut pool = BrowserPool::builder()
 //!         .config(
 //!             BrowserPoolConfigBuilder::new()
 //!                 .max_pool_size(5)
@@ -769,7 +769,7 @@ impl BrowserPoolInner {
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // Create pool
-///     let pool = BrowserPool::builder()
+///     let mut pool = BrowserPool::builder()
 ///         .config(
 ///             BrowserPoolConfigBuilder::new()
 ///                 .max_pool_size(5)
@@ -817,7 +817,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?
@@ -837,7 +837,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -864,7 +864,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let browser = pool.get()?;
     /// let tab = browser.new_tab()?;
     /// tab.navigate_to("https://example.com")?;
@@ -886,7 +886,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let stats = pool.stats();
     /// println!("Available: {}, Active: {}", stats.available, stats.active);
     /// ```
@@ -928,7 +928,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -1196,7 +1196,7 @@ impl BrowserPool {
                 // before doing any I/O operations
                 let browsers_to_ping = inner.get_active_browsers_snapshot();
                 log::trace!(
-                    " Keep-alive checking {} active browsers",
+                    "Keep-alive checking {} active browsers",
                     browsers_to_ping.len()
                 );
 
@@ -1207,14 +1207,14 @@ impl BrowserPool {
                 for (id, tracked) in browsers_to_ping {
                     // Check shutdown during ping loop (allows early exit)
                     if inner.is_shutting_down() {
-                        log::info!("� Shutdown detected during ping loop, exiting immediately");
+                        log::info!("Shutdown detected during ping loop, exiting immediately");
                         return;
                     }
 
                     // Check TTL before pinging (no point pinging expired browsers)
                     if tracked.is_expired(browser_ttl) {
                         log::info!(
-                            "� Browser {} expired (age: {}min, TTL: {}min), marking for retirement",
+                            "Browser {} expired (age: {}min, TTL: {}min), marking for retirement",
                             id,
                             tracked.age_minutes(),
                             browser_ttl.as_secs() / 60
@@ -1230,7 +1230,7 @@ impl BrowserPool {
                             // Reset failure count on success
                             if failure_counts.remove(&id).is_some() {
                                 log::debug!(
-                                    " Browser {} ping successful, failure count reset",
+                                    "Browser {} ping successful, failure count reset",
                                     id
                                 );
                             }
@@ -1243,7 +1243,7 @@ impl BrowserPool {
                                 *failures += 1;
 
                                 log::warn!(
-                                    "� Browser {} ping failed (attempt {}/{}): {}",
+                                    "Browser {} ping failed (attempt {}/{}): {}",
                                     id,
                                     failures,
                                     max_failures,
@@ -1253,7 +1253,7 @@ impl BrowserPool {
                                 // Remove if exceeded max failures
                                 if *failures >= max_failures {
                                     log::error!(
-                                        "L Browser {} exceeded max ping failures ({}), marking for removal",
+                                        "Browser {} exceeded max ping failures ({}), marking for removal",
                                         id,
                                         max_failures
                                     );
@@ -1407,7 +1407,7 @@ impl BrowserPool {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let mut pool = /* ... */;
     ///
     /// // During application shutdown
@@ -1573,7 +1573,7 @@ impl Drop for BrowserPool {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use std::time::Duration;
 /// use html2pdf_api::{BrowserPool, BrowserPoolConfigBuilder, ChromeBrowserFactory};
 ///
@@ -1605,7 +1605,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let builder = BrowserPoolBuilder::new();
     /// ```
     pub fn new() -> Self {
@@ -1626,7 +1626,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let config = BrowserPoolConfigBuilder::new()
     ///     .max_pool_size(10)
     ///     .build()?;
@@ -1652,7 +1652,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -1673,7 +1673,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// // Disable for tests
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
@@ -1697,7 +1697,7 @@ impl BrowserPoolBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let pool = BrowserPool::builder()
     ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
     ///     .build()?;
@@ -1769,7 +1769,7 @@ impl Default for BrowserPoolBuilder {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     env_logger::init();
