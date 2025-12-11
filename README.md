@@ -34,7 +34,7 @@ html2pdf-api = "0.1"
 
 | Feature | Description | Default |
 |---------|-------------|---------|
-| `env-config` | Load configuration from environment variables | No |
+| `env-config` | Load configuration from environment variables | Yes |
 | `actix-integration` | Actix-web framework support | No |
 | `rocket-integration` | Rocket framework support | No |
 | `axum-integration` | Axum framework support | No |
