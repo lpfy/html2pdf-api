@@ -20,7 +20,7 @@ test-utils = []
 env-config = ["dep:dotenvy"]
 actix-integration = ["dep:actix-web", "dep:serde", "dep:serde_json", "env-config"]
 rocket-integration = ["dep:rocket", "env-config"]
-axum-integration = ["dep:axum", "dep:tower", "env-config"]
+axum-integration = ["dep:axum", "dep:tower", "dep:serde", "dep:serde_json", "env-config"]
 
 [dependencies]
 headless_chrome = "1.0"

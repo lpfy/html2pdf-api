@@ -371,6 +371,7 @@ mod tests {
     /// the configured TTL. This test verifies the expiry logic without
     /// creating actual browser instances.
     #[test]
+    #[cfg(not(windows))]
     fn test_tracked_browser_expiry_logic() {
         // Simulate a browser created 3700 seconds ago (over 1 hour)
         let created_at = Instant::now() - Duration::from_secs(3700);
@@ -396,6 +397,78 @@ mod tests {
         );
     }
 
+    /// Windows version: Uses Duration comparisons instead of Instant subtraction
+    /// because `Instant::now() - Duration` can panic on Windows if the
+    /// duration exceeds the process uptime.
+    #[test]
+    #[cfg(windows)]
+    fn test_tracked_browser_expiry_logic() {
+        let ttl = Duration::from_secs(3600); // 1 hour TTL
+
+        // Age of 3700 seconds (over 1 hour) should be expired
+        let age_expired = Duration::from_secs(3700);
+        assert!(
+            age_expired > ttl,
+            "Age ({:?}) should exceed TTL ({:?})",
+            age_expired,
+            ttl
+        );
+
+        // Age of 3500 seconds (under 1 hour) should NOT be expired
+        let age_not_expired = Duration::from_secs(3500);
+        assert!(
+            age_not_expired <= ttl,
+            "Age ({:?}) should NOT exceed TTL ({:?})",
+            age_not_expired,
+            ttl
+        );
+
+        // Verify age calculation in minutes
+        let age_minutes = age_expired.as_secs() / 60;
+        assert!(
+            age_minutes > 60,
+            "Browser age should exceed 60 minutes, got {} minutes",
+            age_minutes
+        );
+    }
+
+    /// Verifies that is_expired returns correct values.
+    #[test]
+    #[cfg(not(windows))]
+    fn test_is_expired_boundary() {
+        let ttl = Duration::from_secs(100);
+
+        // Just created - should not be expired
+        let just_created = Instant::now();
+        assert!(just_created.elapsed() < ttl);
+
+        // Old timestamp - should be expired
+        let old = Instant::now() - Duration::from_secs(101);
+        assert!(old.elapsed() > ttl);
+    }
+
+    /// Windows version: Uses Duration comparisons to avoid Instant subtraction panic.
+    #[test]
+    #[cfg(windows)]
+    fn test_is_expired_boundary() {
+        let ttl = Duration::from_secs(100);
+
+        // Just created (0 seconds old) - should not be expired
+        let age_new = Duration::from_secs(0);
+        assert!(age_new <= ttl, "New browser should not be expired");
+
+        // Exactly at TTL - should not be expired (using >, not >=)
+        let age_at_ttl = Duration::from_secs(100);
+        assert!(
+            !(age_at_ttl > ttl),
+            "Browser at exactly TTL should not be expired"
+        );
+
+        // Just over TTL - should be expired
+        let age_expired = Duration::from_secs(101);
+        assert!(age_expired > ttl, "Browser over TTL should be expired");
+    }
+
     /// Verifies age_minutes calculation.
     #[test]
     fn test_age_minutes_calculation() {
@@ -409,19 +482,5 @@ mod tests {
         assert_eq!(60u64 / 60, 1); // Exactly one minute
         assert_eq!(119u64 / 60, 1); // Just under two minutes
         assert_eq!(120u64 / 60, 2); // Exactly two minutes
-    }
-
-    /// Verifies that is_expired returns correct values.
-    #[test]
-    fn test_is_expired_boundary() {
-        let ttl = Duration::from_secs(100);
-
-        // Just created - should not be expired
-        let just_created = Instant::now();
-        assert!(just_created.elapsed() < ttl);
-
-        // Old timestamp - should be expired
-        let old = Instant::now() - Duration::from_secs(101);
-        assert!(old.elapsed() > ttl);
     }
 }
