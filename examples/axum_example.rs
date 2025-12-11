@@ -14,7 +14,9 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use html2pdf_api::prelude::*;
+use html2pdf_api::{
+    BrowserPool, BrowserPoolConfigBuilder, ChromeBrowserFactory, SharedBrowserPool,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::signal;
