@@ -7,7 +7,9 @@
 //!
 //! Then visit: http://localhost:8000/pdf
 
-use html2pdf_api::prelude::*;
+use html2pdf_api::{
+    BrowserPool, BrowserPoolConfigBuilder, ChromeBrowserFactory, SharedBrowserPool,
+};
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
 use rocket::{State, get, launch, routes};
