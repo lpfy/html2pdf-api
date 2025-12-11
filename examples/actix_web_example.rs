@@ -69,10 +69,7 @@ async fn generate_pdf(pool: web::Data<SharedBrowserPool>) -> impl Responder {
     // Return PDF response
     HttpResponse::Ok()
         .content_type("application/pdf")
-        .insert_header((
-            "Content-Disposition",
-            "attachment; filename=\"google.pdf\"",
-        ))
+        .insert_header(("Content-Disposition", "attachment; filename=\"google.pdf\""))
         .body(pdf_data)
 }
 

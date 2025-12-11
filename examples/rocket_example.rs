@@ -23,10 +23,7 @@ impl<'r> Responder<'r, 'static> for PdfResponse {
     fn respond_to(self, _: &'r rocket::Request<'_>) -> response::Result<'static> {
         Response::build()
             .header(ContentType::PDF)
-            .raw_header(
-                "Content-Disposition",
-                "attachment; filename=\"google.pdf\"",
-            )
+            .raw_header("Content-Disposition", "attachment; filename=\"google.pdf\"")
             .sized_body(self.0.len(), Cursor::new(self.0))
             .ok()
     }
