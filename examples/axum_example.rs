@@ -46,7 +46,7 @@ async fn generate_pdf(
     })?;
 
     // Navigate to the URL
-    tab.navigate_to("https://example.com").map_err(|e| {
+    tab.navigate_to("https://google.com").map_err(|e| {
         log::error!("Failed to navigate: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -71,7 +71,7 @@ async fn generate_pdf(
             (header::CONTENT_TYPE, "application/pdf"),
             (
                 header::CONTENT_DISPOSITION,
-                "attachment; filename=\"example.pdf\"",
+                "attachment; filename=\"google.pdf\"",
             ),
         ],
         pdf_data,

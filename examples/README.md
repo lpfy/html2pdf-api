@@ -42,7 +42,7 @@ Each example:
 3. Starts a web server with a `/pdf` endpoint
 4. When you visit `/pdf`, it:
    - Gets a browser from the pool
-   - Navigates to https://example.com
+   - Navigates to https://google.com
    - Generates a PDF
    - Returns the PDF as a download
 5. Handles graceful shutdown on Ctrl+C

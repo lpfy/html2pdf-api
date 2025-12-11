@@ -44,7 +44,7 @@ async fn generate_pdf(pool: web::Data<SharedBrowserPool>) -> impl Responder {
     };
 
     // Navigate to the URL
-    if let Err(e) = tab.navigate_to("https://example.com") {
+    if let Err(e) = tab.navigate_to("https://google.com") {
         log::error!("Failed to navigate: {}", e);
         return HttpResponse::InternalServerError().body("Failed to navigate");
     }
@@ -71,7 +71,7 @@ async fn generate_pdf(pool: web::Data<SharedBrowserPool>) -> impl Responder {
         .content_type("application/pdf")
         .insert_header((
             "Content-Disposition",
-            "attachment; filename=\"example.pdf\"",
+            "attachment; filename=\"google.pdf\"",
         ))
         .body(pdf_data)
 }

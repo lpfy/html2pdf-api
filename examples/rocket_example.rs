@@ -25,7 +25,7 @@ impl<'r> Responder<'r, 'static> for PdfResponse {
             .header(ContentType::PDF)
             .raw_header(
                 "Content-Disposition",
-                "attachment; filename=\"example.pdf\"",
+                "attachment; filename=\"google.pdf\"",
             )
             .sized_body(self.0.len(), Cursor::new(self.0))
             .ok()
@@ -56,7 +56,7 @@ async fn generate_pdf(pool: &State<SharedBrowserPool>) -> Result<PdfResponse, St
     })?;
 
     // Navigate to the URL
-    tab.navigate_to("https://example.com").map_err(|e| {
+    tab.navigate_to("https://google.com").map_err(|e| {
         log::error!("Failed to navigate: {}", e);
         Status::InternalServerError
     })?;
