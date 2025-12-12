@@ -379,7 +379,7 @@ match pool.get() {
 
 ### Chrome/Chromium
 
-**No installation required!** 
+**No installation required!**
 
 The library automatically downloads a compatible Chromium binary if Chrome is not detected on your system. Downloaded binaries are cached for future use:
 
