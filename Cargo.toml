@@ -1,11 +1,11 @@
 [package]
 name = "html2pdf-api"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["lpfy <lpfy@msn.com>"]
 license = "MIT"
-description = "Thread-safe browser pool for headless Chrome automation with web framework integration"
+description = "Thread-safe headless browser pool for high-performance HTML to PDF conversion with native Rust web framework integration."
 documentation = "https://docs.rs/html2pdf-api"
 homepage = "https://github.com/lpfy/html2pdf-api"
 repository = "https://github.com/lpfy/html2pdf-api"
@@ -23,7 +23,7 @@ rocket-integration = ["dep:rocket", "env-config"]
 axum-integration = ["dep:axum", "dep:tower", "dep:serde", "dep:serde_json", "env-config"]
 
 [dependencies]
-headless_chrome = "1.0"
+headless_chrome = { version = "1", features = ["fetch"] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
 log = "0.4"
 thiserror = "2"

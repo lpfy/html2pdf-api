@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-12-12
+
+### Added
+
+- **Automatic Chromium Download**: Chrome/Chromium is now automatically downloaded if not detected on the system. No manual installation required for first-time users.
+  - Downloaded binaries are cached in platform-specific directories:
+    - Linux: `~/.local/share/headless-chrome`
+    - macOS: `~/Library/Application Support/headless-chrome`
+    - Windows: `C:\Users\<User>\AppData\Roaming\headless-chrome\data`
+  - First run may take a few minutes to download (~170MB)
+  - Subsequent runs use the cached version instantly
+
+### Changed
+
+- Updated `headless_chrome` dependency to include the `fetch` feature by default
+- Manual Chrome/Chromium installation is now optional (still supported via `CHROME_PATH` environment variable)
+
 ## [0.1.0] - 2025-12-11
 
 ### Added

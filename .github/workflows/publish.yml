@@ -51,11 +51,25 @@ jobs:
         id: changelog
         run: |
             VERSION=${GITHUB_REF#refs/tags/v}
+            echo "Extracting changelog for version: $VERSION"
+            
             # Extract section for this version from CHANGELOG.md
+            # Pattern: from "## [VERSION]" until next "## [" (exclusive)
             sed -n "/^## 
             $$
             $VERSION
-            $$/,/^## \[/p" CHANGELOG.md | sed '$d' > release_notes.md
+            $$/,/^## 
+            $$
+            /p" CHANGELOG.md | sed '$d' > release_notes.md
+            
+            # Fallback if empty
+            if [ ! -s release_notes.md ]; then
+              echo "Warning: No changelog entry found for $VERSION"
+              echo "Release $VERSION" > release_notes.md
+            fi
+            
+            echo "--- Extracted Release Notes ---"
+            cat release_notes.md
       
       - name: Create Release
         uses: softprops/action-gh-release@v1

@@ -1,6 +1,6 @@
 # html2pdf-api
 
-> Thread-safe browser pool for HTML to PDF conversion with web framework integration
+> Thread-safe headless browser pool for high-performance HTML to PDF conversion with native Rust web framework integration.
 
 [![Crates.io](https://img.shields.io/crates/v/html2pdf-api.svg)](https://crates.io/crates/html2pdf-api)
 [![Documentation](https://docs.rs/html2pdf-api/badge.svg)](https://docs.rs/html2pdf-api)
@@ -375,10 +375,26 @@ match pool.get() {
 ## Requirements
 
 - **Rust**: 1.85 or later
-- **Chrome/Chromium**: Must be installed on the system
 - **Tokio**: Runtime required for async operations
 
-### Chrome Installation
+### Chrome/Chromium
+
+**No installation required!** 
+
+The library automatically downloads a compatible Chromium binary if Chrome is not detected on your system. Downloaded binaries are cached for future use:
+
+| Platform | Cache Location |
+|----------|----------------|
+| Linux | `~/.local/share/headless-chrome` |
+| macOS | `~/Library/Application Support/headless-chrome` |
+| Windows | `C:\Users\<User>\AppData\Roaming\headless-chrome\data` |
+
+> **First run**: May take a few minutes to download Chromium (~170MB)  
+> **Subsequent runs**: Uses cached version instantly
+
+### Chrome/Chromium - Manual Installation (Optional)
+
+**While not required, you can install Chrome manually if preferred:**
 
 **Ubuntu/Debian:**
 ```bash
