@@ -27,7 +27,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-html2pdf-api = "0.1"
+html2pdf-api = "0.2"
 ```
 
 ### Feature Flags
@@ -44,7 +44,7 @@ Enable features as needed:
 
 ```toml
 [dependencies]
-html2pdf-api = { version = "0.1", features = ["actix-integration", "env-config"] }
+html2pdf-api = { version = "0.2", features = ["actix-integration", "env-config"] }
 ```
 
 ## Quick Start
