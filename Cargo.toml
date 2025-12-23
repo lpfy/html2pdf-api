@@ -1,6 +1,6 @@
 [package]
 name = "html2pdf-api"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2024"
 rust-version = "1.85"
 authors = ["lpfy <lpfy@msn.com>"]
@@ -19,7 +19,7 @@ default = ["env-config"]
 test-utils = []
 env-config = ["dep:dotenvy"]
 actix-integration = ["dep:actix-web", "dep:serde", "dep:serde_json", "env-config"]
-rocket-integration = ["dep:rocket", "env-config"]
+rocket-integration = ["dep:rocket", "dep:serde", "dep:serde_json", "env-config"]
 axum-integration = ["dep:axum", "dep:tower", "dep:serde", "dep:serde_json", "env-config"]
 
 [dependencies]
