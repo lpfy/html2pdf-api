@@ -262,6 +262,17 @@ pub(crate) mod tracked;
 ))]
 pub mod integrations;
 
+/// Core PDF generation service.
+///
+/// Provides framework-agnostic types and functions for PDF generation.
+/// Used by the framework integrations.
+#[cfg(any(
+    feature = "actix-integration",
+    feature = "rocket-integration",
+    feature = "axum-integration"
+))]
+pub mod service;
+
 // ============================================================================
 // Re-exports (Public API)
 // ============================================================================

@@ -919,6 +919,38 @@ impl BrowserPool {
         }
     }
 
+    /// Get a reference to the pool configuration.
+    ///
+    /// Returns the configuration that was used to create this pool.
+    /// The configuration is immutable after pool creation.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let pool = BrowserPool::builder()
+    ///     .config(
+    ///         BrowserPoolConfigBuilder::new()
+    ///             .max_pool_size(10)
+    ///             .build()?
+    ///     )
+    ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
+    ///     .build()?;
+    ///
+    /// println!("Max pool size: {}", pool.config().max_pool_size);
+    /// println!("Browser TTL: {:?}", pool.config().browser_ttl);
+    /// ```
+    ///
+    /// # Use Cases
+    ///
+    /// - Logging configuration at startup
+    /// - Monitoring/metrics collection
+    /// - Readiness checks (comparing active count vs max_pool_size)
+    /// - Debugging pool behavior
+    #[inline]
+    pub fn config(&self) -> &BrowserPoolConfig {
+        self.inner.config()
+    }
+
     /// Warmup the pool by pre-creating browsers.
     ///
     /// This is highly recommended to reduce first-request latency.
