@@ -223,16 +223,16 @@
 //! |-------|-------------|
 //! | [`BrowserPoolActixExt`] | Adds `into_actix_data()` to `BrowserPool` |
 
-use actix_web::{http::header, web, HttpResponse, Responder};
+use actix_web::{HttpResponse, Responder, http::header, web};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::SharedBrowserPool;
 use crate::pool::BrowserPool;
 use crate::service::{
-    self, ErrorResponse, HealthResponse, PdfFromHtmlRequest, PdfFromUrlRequest,
-    PdfServiceError, DEFAULT_TIMEOUT_SECS,
+    self, DEFAULT_TIMEOUT_SECS, ErrorResponse, HealthResponse, PdfFromHtmlRequest,
+    PdfFromUrlRequest, PdfServiceError,
 };
-use crate::SharedBrowserPool;
 
 // ============================================================================
 // Type Aliases
@@ -453,10 +453,7 @@ pub async fn pdf_from_html(
     let request = body.into_inner();
     let pool = pool.into_inner();
 
-    log::debug!(
-        "PDF from HTML request: {} bytes",
-        request.html.len()
-    );
+    log::debug!("PDF from HTML request: {} bytes", request.html.len());
 
     let result = tokio::time::timeout(
         Duration::from_secs(DEFAULT_TIMEOUT_SECS),
@@ -754,11 +751,7 @@ fn build_error_response(error: PdfServiceError) -> HttpResponse {
     let status_code = error.status_code();
     let body = ErrorResponse::from(&error);
 
-    log::warn!(
-        "PDF generation error: {} (HTTP {})",
-        error,
-        status_code
-    );
+    log::warn!("PDF generation error: {} (HTTP {})", error, status_code);
 
     match status_code {
         400 => HttpResponse::BadRequest().json(body),
@@ -902,8 +895,8 @@ mod tests {
         fn _accepts_shared_pool(_: SharedPool) {}
     }
 
-    #[test]
-    fn test_shared_pool_type_matches() {
+    #[tokio::test]
+    async fn test_shared_pool_type_matches() {
         // SharedPool and SharedBrowserPool should be compatible
         fn _takes_shared_pool(_: SharedPool) {}
         fn _returns_shared_browser_pool() -> SharedBrowserPool {

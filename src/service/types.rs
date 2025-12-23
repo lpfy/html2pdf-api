@@ -1606,21 +1606,42 @@ mod tests {
 
     #[test]
     fn test_error_status_codes() {
-        assert_eq!(PdfServiceError::InvalidUrl("".to_string()).status_code(), 400);
+        assert_eq!(
+            PdfServiceError::InvalidUrl("".to_string()).status_code(),
+            400
+        );
         assert_eq!(PdfServiceError::EmptyHtml.status_code(), 400);
-        assert_eq!(PdfServiceError::PoolLockFailed("".to_string()).status_code(), 500);
-        assert_eq!(PdfServiceError::BrowserUnavailable("".to_string()).status_code(), 503);
-        assert_eq!(PdfServiceError::NavigationFailed("".to_string()).status_code(), 502);
-        assert_eq!(PdfServiceError::NavigationTimeout("".to_string()).status_code(), 504);
+        assert_eq!(
+            PdfServiceError::PoolLockFailed("".to_string()).status_code(),
+            500
+        );
+        assert_eq!(
+            PdfServiceError::BrowserUnavailable("".to_string()).status_code(),
+            503
+        );
+        assert_eq!(
+            PdfServiceError::NavigationFailed("".to_string()).status_code(),
+            502
+        );
+        assert_eq!(
+            PdfServiceError::NavigationTimeout("".to_string()).status_code(),
+            504
+        );
         assert_eq!(PdfServiceError::Timeout("".to_string()).status_code(), 504);
         assert_eq!(PdfServiceError::PoolShuttingDown.status_code(), 503);
     }
 
     #[test]
     fn test_error_codes() {
-        assert_eq!(PdfServiceError::InvalidUrl("".to_string()).error_code(), "INVALID_URL");
+        assert_eq!(
+            PdfServiceError::InvalidUrl("".to_string()).error_code(),
+            "INVALID_URL"
+        );
         assert_eq!(PdfServiceError::EmptyHtml.error_code(), "EMPTY_HTML");
-        assert_eq!(PdfServiceError::PoolShuttingDown.error_code(), "POOL_SHUTTING_DOWN");
+        assert_eq!(
+            PdfServiceError::PoolShuttingDown.error_code(),
+            "POOL_SHUTTING_DOWN"
+        );
     }
 
     #[test]

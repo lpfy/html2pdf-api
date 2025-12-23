@@ -50,10 +50,10 @@
 //! curl http://localhost:8080/manual/pdf --output manual.pdf
 //! ```
 
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use html2pdf_api::integrations::actix::{configure_routes, SharedPool};
+use actix_web::{App, HttpResponse, HttpServer, Responder, web};
+use html2pdf_api::integrations::actix::{SharedPool, configure_routes};
 use html2pdf_api::prelude::*;
-use html2pdf_api::service::{generate_pdf_from_url, PdfFromUrlRequest};
+use html2pdf_api::service::{PdfFromUrlRequest, generate_pdf_from_url};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -84,7 +84,11 @@ async fn custom_pdf_handler(
 
     // Example: Custom logging with request ID
     let request_id = uuid::Uuid::new_v4().to_string();
-    log::info!("[{}] Starting PDF generation for: {}", request_id, query.url);
+    log::info!(
+        "[{}] Starting PDF generation for: {}",
+        request_id,
+        query.url
+    );
 
     // -------------------------------------------------------------------------
     // Call the service function in a blocking context
@@ -110,10 +114,7 @@ async fn custom_pdf_handler(
                 .content_type("application/pdf")
                 .insert_header(("X-Request-ID", request_id))
                 .insert_header(("X-PDF-Size", pdf_response.size().to_string()))
-                .insert_header((
-                    "Content-Disposition",
-                    pdf_response.content_disposition(),
-                ))
+                .insert_header(("Content-Disposition", pdf_response.content_disposition()))
                 .body(pdf_response.data)
         }
         Ok(Err(service_error)) => {
@@ -208,7 +209,10 @@ async fn manual_pdf_handler(pool: web::Data<SharedBrowserPool>) -> impl Responde
     // Return PDF response
     HttpResponse::Ok()
         .content_type("application/pdf")
-        .insert_header(("Content-Disposition", "attachment; filename=\"rust-lang.pdf\""))
+        .insert_header((
+            "Content-Disposition",
+            "attachment; filename=\"rust-lang.pdf\"",
+        ))
         .body(pdf_data)
 }
 

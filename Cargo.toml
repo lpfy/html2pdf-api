@@ -1,6 +1,6 @@
 [package]
 name = "html2pdf-api"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 rust-version = "1.85"
 authors = ["lpfy <lpfy@msn.com>"]

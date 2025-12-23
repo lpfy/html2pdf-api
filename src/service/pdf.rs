@@ -1243,19 +1243,11 @@ fn wait_for_page_ready(tab: &headless_chrome::Tab, max_wait: Duration) {
         // Check if page signals completion
         let is_done = tab
             .evaluate("window.isPageDone === true", false)
-            .map(|result| {
-                result
-                    .value
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false)
-            })
+            .map(|result| result.value.and_then(|v| v.as_bool()).unwrap_or(false))
             .unwrap_or(false);
 
         if is_done {
-            log::debug!(
-                "Page signaled ready after {:?}",
-                start.elapsed()
-            );
+            log::debug!("Page signaled ready after {:?}", start.elapsed());
             return;
         }
 
