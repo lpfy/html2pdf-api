@@ -60,39 +60,39 @@
 //!
 //! | Type | Purpose | Used By |
 //! |------|---------|---------|
-//! | [`PdfFromUrlRequest`] | Parameters for URL → PDF conversion | `GET /pdf` |
-//! | [`PdfFromHtmlRequest`] | Parameters for HTML → PDF conversion | `POST /pdf/html` |
+//! | `PdfFromUrlRequest` | Parameters for URL → PDF conversion | `GET /pdf` |
+//! | `PdfFromHtmlRequest` | Parameters for HTML → PDF conversion | `POST /pdf/html` |
 //!
 //! ## Response Types
 //!
 //! | Type | Purpose | Used By |
 //! |------|---------|---------|
-//! | [`PdfResponse`] | Successful PDF generation result | PDF endpoints |
-//! | [`PoolStatsResponse`] | Browser pool statistics | `GET /pool/stats` |
-//! | [`HealthResponse`] | Health check response | `GET /health` |
-//! | [`ErrorResponse`] | JSON error response | All endpoints (on error) |
+//! | `PdfResponse` | Successful PDF generation result | PDF endpoints |
+//! | `PoolStatsResponse` | Browser pool statistics | `GET /pool/stats` |
+//! | `HealthResponse` | Health check response | `GET /health` |
+//! | `ErrorResponse` | JSON error response | All endpoints (on error) |
 //!
 //! ## Error Types
 //!
 //! | Type | Purpose |
 //! |------|---------|
-//! | [`PdfServiceError`] | All possible service errors with HTTP status mapping |
+//! | `PdfServiceError` | All possible service errors with HTTP status mapping |
 //!
 //! ## Core Functions
 //!
 //! | Function | Purpose | Blocking? |
 //! |----------|---------|-----------|
-//! | [`generate_pdf_from_url`] | Convert URL to PDF | ⚠️ Yes |
-//! | [`generate_pdf_from_html`] | Convert HTML to PDF | ⚠️ Yes |
-//! | [`get_pool_stats`] | Get pool statistics | ✅ Fast |
-//! | [`is_pool_ready`] | Check pool readiness | ✅ Fast |
+//! | `generate_pdf_from_url` | Convert URL to PDF | ⚠️ Yes |
+//! | `generate_pdf_from_html` | Convert HTML to PDF | ⚠️ Yes |
+//! | `get_pool_stats` | Get pool statistics | ✅ Fast |
+//! | `is_pool_ready` | Check pool readiness | ✅ Fast |
 //!
 //! ## Constants
 //!
 //! | Constant | Value | Purpose |
 //! |----------|-------|---------|
-//! | [`DEFAULT_TIMEOUT_SECS`] | 60 | Overall operation timeout |
-//! | [`DEFAULT_WAIT_SECS`] | 5 | JavaScript wait time |
+//! | `DEFAULT_TIMEOUT_SECS` | 60 | Overall operation timeout |
+//! | `DEFAULT_WAIT_SECS` | 5 | JavaScript wait time |
 //!
 //! # Usage Patterns
 //!
@@ -209,8 +209,8 @@
 //!
 //! # Blocking Behavior
 //!
-//! ⚠️ **Important:** The PDF generation functions ([`generate_pdf_from_url`] and
-//! [`generate_pdf_from_html`]) are **blocking** and should never be called directly
+//! ⚠️ **Important:** The PDF generation functions (`generate_pdf_from_url` and
+//! `generate_pdf_from_html`) are **blocking** and should never be called directly
 //! from an async context.
 //!
 //! ## Correct Usage

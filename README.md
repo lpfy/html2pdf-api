@@ -219,7 +219,7 @@ async fn generate_pdf(
 }
 ```
 
-### Rocket
+### Rocket (Manual Browser Control Only)
 
 ```rust
 use rocket::{get, launch, routes, State};
@@ -250,7 +250,7 @@ async fn rocket() -> _ {
 }
 ```
 
-### Axum
+### Axum (Manual Browser Control Only)
 
 ```rust
 use axum::{Router, routing::get, extract::State, response::IntoResponse};

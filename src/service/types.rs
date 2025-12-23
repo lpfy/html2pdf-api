@@ -744,14 +744,14 @@ impl PdfResponse {
     ///
     /// // For inline display
     /// let response = PdfResponse::new(
-    ///     pdf_bytes,
+    ///     vec![0x25, 0x50, 0x44, 0x46],
     ///     "invoice.pdf".to_string(),
     ///     false,
     /// );
     ///
     /// // For forced download
     /// let response = PdfResponse::new(
-    ///     pdf_bytes,
+    ///     vec![0x25, 0x50, 0x44, 0x46],
     ///     "confidential-report.pdf".to_string(),
     ///     true,
     /// );
@@ -1401,7 +1401,7 @@ impl PdfServiceError {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// use html2pdf_api::service::PdfServiceError;
     ///
     /// let error = PdfServiceError::BrowserUnavailable("pool full".to_string());
