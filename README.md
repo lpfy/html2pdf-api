@@ -219,34 +219,117 @@ async fn generate_pdf(
 }
 ```
 
-### Rocket (Manual Browser Control Only)
+### Rocket
+
+#### Option 1: Pre-built Routes (Recommended)
+
+Get a fully functional PDF API with just a few lines of code:
 
 ```rust
-use rocket::{get, launch, routes, State};
 use html2pdf_api::prelude::*;
+use html2pdf_api::integrations::rocket::routes;
 
-#[get("/pdf")]
-async fn generate_pdf(pool: &State<SharedBrowserPool>) -> Vec<u8> {
-    let pool_guard = pool.lock().unwrap();
-    let browser = pool_guard.get().unwrap();
-    
-    let tab = browser.new_tab().unwrap();
-    tab.navigate_to("https://example.com").unwrap();
-    tab.print_to_pdf(None).unwrap()
-}
-
-#[launch]
-async fn rocket() -> _ {
-    let pool = BrowserPool::builder()
-        .factory(Box::new(ChromeBrowserFactory::with_defaults()))
-        .build()
-        .unwrap();
-    
-    pool.warmup().await.unwrap();
+#[rocket::launch]
+async fn launch() -> _ {
+    let pool = init_browser_pool().await
+        .expect("Failed to initialize browser pool");
 
     rocket::build()
-        .manage(pool.into_shared())
-        .mount("/", routes![generate_pdf])
+        .manage(pool)
+        .mount("/", routes())  // Adds all PDF endpoints!
+}
+```
+
+This gives you these endpoints automatically:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/pdf?url=https://example.com` | Convert URL to PDF |
+| POST | `/pdf/html` | Convert HTML to PDF |
+| GET | `/pool/stats` | Pool statistics |
+| GET | `/health` | Health check |
+| GET | `/ready` | Readiness check |
+
+#### Option 2: Custom Handler with Service Functions
+
+For custom logic (authentication, rate limiting, etc.):
+
+```rust
+use rocket::{get, State, http::ContentType, Response};
+use html2pdf_api::prelude::*;
+use html2pdf_api::service::{generate_pdf_from_url, PdfFromUrlRequest};
+use std::io::Cursor;
+
+#[get("/custom-pdf?<url>&<filename>&<waitsecs>&<landscape>&<download>&<print_background>")]
+pub fn my_pdf_handler(
+    pool: &State<SharedBrowserPool>,
+    url: String,
+    filename: Option<String>,
+    waitsecs: Option<u64>,
+    landscape: Option<bool>,
+    download: Option<bool>,
+    print_background: Option<bool>,
+) -> Result<Response<'static>, rocket::http::Status> {
+    // Custom pre-processing: auth, rate limiting, logging, etc.
+    log::info!("Custom handler: {}", url);
+
+    let request = PdfFromUrlRequest {
+        url,
+        filename,
+        waitsecs,
+        landscape,
+        download,
+        print_background,
+    };
+
+    match generate_pdf_from_url(pool.inner(), &request) {
+        Ok(pdf) => {
+            let response = Response::build()
+                .header(ContentType::PDF)
+                .raw_header("Content-Disposition", pdf.content_disposition())
+                .sized_body(pdf.data.len(), Cursor::new(pdf.data))
+                .finalize();
+            Ok(response)
+        }
+        Err(e) => {
+            log::error!("PDF generation failed: {}", e);
+            Err(rocket::http::Status::new(e.status_code()))
+        }
+    }
+}
+```
+
+#### Option 3: Manual Browser Control
+
+For complete control over browser operations:
+
+```rust
+use rocket::{get, State, http::ContentType, Response};
+use html2pdf_api::prelude::*;
+use std::io::Cursor;
+
+#[get("/manual-pdf")]
+pub fn generate_pdf(
+    pool: &State<SharedBrowserPool>,
+) -> Result<Response<'static>, rocket::http::Status> {
+    let pool_guard = pool.lock().unwrap();
+    let browser = pool_guard.get()
+        .map_err(|_| rocket::http::Status::ServiceUnavailable)?;
+    
+    let tab = browser.new_tab()
+        .map_err(|_| rocket::http::Status::InternalServerError)?;
+    tab.navigate_to("https://example.com")
+        .map_err(|_| rocket::http::Status::BadGateway)?;
+    tab.wait_until_navigated()
+        .map_err(|_| rocket::http::Status::BadGateway)?;
+    let pdf = tab.print_to_pdf(None)
+        .map_err(|_| rocket::http::Status::InternalServerError)?;
+    
+    let response = Response::build()
+        .header(ContentType::PDF)
+        .sized_body(pdf.len(), Cursor::new(pdf))
+        .finalize();
+    Ok(response)
 }
 ```
 
