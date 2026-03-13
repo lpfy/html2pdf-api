@@ -227,7 +227,7 @@ Get a fully functional PDF API with just a few lines of code:
 
 ```rust
 use html2pdf_api::prelude::*;
-use html2pdf_api::integrations::rocket::routes;
+use html2pdf_api::integrations::rocket::configure_routes;
 
 #[rocket::launch]
 async fn launch() -> _ {
@@ -236,7 +236,7 @@ async fn launch() -> _ {
 
     rocket::build()
         .manage(pool)
-        .mount("/", routes())  // Adds all PDF endpoints!
+        .mount("/", configure_routes())  // Adds all PDF endpoints!
 }
 ```
 
@@ -333,49 +333,111 @@ pub fn generate_pdf(
 }
 ```
 
-### Axum (Manual Browser Control Only)
+### Axum
+
+#### Option 1: Pre-built Routes (Recommended)
+
+Get a fully functional PDF API with just a few lines of code:
 
 ```rust
-use axum::{Router, routing::get, extract::State, response::IntoResponse};
+use axum::Router;
+use html2pdf_api::prelude::*;
+use html2pdf_api::integrations::axum::configure_routes;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let pool = init_browser_pool().await?;
+
+    let app = Router::new()
+        .merge(configure_routes()) // Adds all PDF endpoints!
+        .with_state(pool.into_shared());
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+    axum::serve(listener, app).await?;
+    
+    Ok(())
+}
+```
+
+This gives you these endpoints automatically:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/pdf?url=https://example.com` | Convert URL to PDF |
+| POST | `/pdf/html` | Convert HTML to PDF |
+| GET | `/pool/stats` | Pool statistics |
+| GET | `/health` | Health check |
+| GET | `/ready` | Readiness check |
+
+#### Option 2: Custom Handler with Service Functions
+
+For custom logic (authentication, rate limiting, etc.):
+
+```rust
+use axum::{extract::{State, Query}, response::IntoResponse, http::{StatusCode, header}};
+use html2pdf_api::prelude::*;
+use html2pdf_api::service::{generate_pdf_from_url, PdfFromUrlRequest};
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct PdfQuery { url: String }
+
+async fn my_pdf_handler(
+    State(pool): State<SharedBrowserPool>,
+    Query(query): Query<PdfQuery>,
+) -> Result<impl IntoResponse, StatusCode> {
+    log::info!("Custom handler: {}", query.url);
+
+    let request = PdfFromUrlRequest {
+        url: query.url,
+        ..Default::default()
+    };
+
+    let result = tokio::task::spawn_blocking(move || generate_pdf_from_url(&pool, &request)).await;
+
+    match result {
+        Ok(Ok(pdf)) => Ok((
+            [
+                (header::CONTENT_TYPE, "application/pdf".to_string()),
+                (header::CONTENT_DISPOSITION, pdf.content_disposition()),
+            ],
+            pdf.data,
+        )),
+        _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+```
+
+#### Option 3: Manual Browser Control
+
+For complete control over browser operations:
+
+```rust
+use axum::{extract::State, response::IntoResponse, http::StatusCode};
 use html2pdf_api::prelude::*;
 
 async fn generate_pdf(
     State(pool): State<SharedBrowserPool>,
-) -> impl IntoResponse {
-    let pool_guard = pool.lock().unwrap();
-    let browser = pool_guard.get().unwrap();
+) -> Result<impl IntoResponse, StatusCode> {
+    let pool_guard = pool.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let browser = pool_guard.get().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     
-    let tab = browser.new_tab().unwrap();
-    tab.navigate_to("https://example.com").unwrap();
-    let pdf = tab.print_to_pdf(None).unwrap();
+    let tab = browser.new_tab().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    tab.navigate_to("https://example.com").map_err(|_| StatusCode::BAD_GATEWAY)?;
+    tab.wait_until_navigated().map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let pdf = tab.print_to_pdf(None).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
-    (
+    Ok((
         [(axum::http::header::CONTENT_TYPE, "application/pdf")],
         pdf,
-    )
-}
-
-#[tokio::main]
-async fn main() {
-    let pool = BrowserPool::builder()
-        .factory(Box::new(ChromeBrowserFactory::with_defaults()))
-        .build()
-        .unwrap();
-    
-    pool.warmup().await.unwrap();
-
-    let app = Router::new()
-        .route("/pdf", get(generate_pdf))
-        .with_state(pool.into_shared());
-
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    ))
 }
 ```
 
-## Pre-built API Endpoints (Actix-web)
+## API Endpoints (Pre-built routes)
 
-When using `configure_routes`, these endpoints are available:
+When using `configure_routes` (Actix/Rocket/Axum), these endpoints are available. 
+*(Note: Examples use port `8080`. Using the provided examples, Actix-web binds to `8080`, Rocket to `8000`, and Axum to `3000`)*
 
 ### GET /pdf - Convert URL to PDF
 

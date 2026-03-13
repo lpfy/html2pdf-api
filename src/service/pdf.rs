@@ -1429,7 +1429,10 @@ mod tests {
     // Constants Tests
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_default_timeout_reasonable() {
         // Timeout should be at least 30 seconds for complex pages
         assert!(DEFAULT_TIMEOUT_SECS >= 30);
@@ -1438,6 +1441,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_default_wait_reasonable() {
         // Wait should be at least 1 second for any JS
         assert!(DEFAULT_WAIT_SECS >= 1);
@@ -1446,6 +1450,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_poll_interval_reasonable() {
         // Poll interval should be at least 100ms (not too aggressive)
         assert!(JS_POLL_INTERVAL_MS >= 100);

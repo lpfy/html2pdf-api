@@ -14,7 +14,7 @@
 //!
 //! # Endpoints
 //!
-//! ## Pre-built (from routes())
+//! ## Pre-built (from configure_routes())
 //! - `GET  /pdf?url=https://example.com` - Convert URL to PDF
 //! - `POST /pdf/html` - Convert HTML to PDF
 //! - `GET  /pool/stats` - Pool statistics
@@ -476,7 +476,7 @@ fn build_rocket(pool: SharedBrowserPool) -> Rocket<Build> {
         // Option 1: Pre-built routes (recommended)
         // Mount all pre-built routes from the integration module
         // -----------------------------------------------------------------
-        .mount("/", html2pdf_api::integrations::rocket::routes())
+        .mount("/", html2pdf_api::integrations::rocket::configure_routes())
         // -----------------------------------------------------------------
         // Option 2: Custom handlers using service functions
         // -----------------------------------------------------------------
@@ -496,13 +496,14 @@ fn build_rocket(pool: SharedBrowserPool) -> Rocket<Build> {
 // ============================================================================
 
 #[rocket::main]
+#[allow(clippy::result_large_err)]
 async fn main() -> Result<(), rocket::Error> {
     // Initialize logging
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     log::info!("Starting Rocket example...");
     log::info!("This example demonstrates multiple integration approaches:");
-    log::info!("  1. Pre-built routes (routes())");
+    log::info!("  1. Pre-built routes (configure_routes())");
     log::info!("  2. Custom handlers with service functions");
     log::info!("  3. Manual browser control");
 
@@ -542,7 +543,7 @@ async fn main() -> Result<(), rocket::Error> {
     log::info!("Starting server on http://localhost:8000");
     log::info!("");
     log::info!("Available endpoints:");
-    log::info!("  Pre-built handlers (from routes()):");
+    log::info!("  Pre-built handlers (from configure_routes()):");
     log::info!("    GET  http://localhost:8000/pdf?url=https://example.com");
     log::info!("    POST http://localhost:8000/pdf/html");
     log::info!("    GET  http://localhost:8000/pool/stats");

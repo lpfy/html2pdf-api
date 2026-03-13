@@ -213,7 +213,7 @@
 //! | Function | Description |
 //! |----------|-------------|
 //! | [`configure_routes`] | Configure all pre-built routes |
-//! | [`routes()`] | Get all routes for manual mounting |
+//! | [`configure_routes`] | Get all pre-built routes for manual mounting |
 //! | [`create_pool_data`] | Wrap `SharedBrowserPool` for Rocket managed state |
 //! | [`create_pool_data_from_arc`] | Wrap `Arc<Mutex<BrowserPool>>` for managed state |
 //!
@@ -224,7 +224,7 @@
 //! | [`BrowserPoolRocketExt`] | Adds `into_rocket_data()` to `BrowserPool` |
 
 use rocket::{
-    Build, Request, Rocket, State,
+    Request, State,
     form::FromForm,
     get,
     http::{ContentType, Header, Status},
@@ -816,75 +816,6 @@ pub fn readiness_check(
     }
 }
 
-// ============================================================================
-// Route Configuration
-// ============================================================================
-
-/// Configure all PDF routes.
-///
-/// Adds all pre-built handlers to the Rocket instance with default paths.
-/// This is the easiest way to set up the PDF service.
-///
-/// # Routes Added
-///
-/// | Method | Path | Handler | Description |
-/// |--------|------|---------|-------------|
-/// | GET | `/pdf` | [`pdf_from_url`] | Convert URL to PDF |
-/// | POST | `/pdf/html` | [`pdf_from_html`] | Convert HTML to PDF |
-/// | GET | `/pool/stats` | [`pool_stats`] | Pool statistics |
-/// | GET | `/health` | [`health_check`] | Health check |
-/// | GET | `/ready` | [`readiness_check`] | Readiness check |
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use rocket::launch;
-/// use html2pdf_api::prelude::*;
-/// use html2pdf_api::integrations::rocket::configure_routes;
-///
-/// #[launch]
-/// async fn rocket() -> _ {
-///     let pool = init_browser_pool().await
-///         .expect("Failed to initialize browser pool");
-///
-///     rocket::build()
-///         .manage(pool)
-///         .configure(configure_routes)
-/// }
-/// ```
-///
-/// # Adding Custom Routes
-///
-/// You can combine `configure_routes` with additional routes:
-///
-/// ```rust,ignore
-/// use rocket::{get, routes};
-///
-/// #[get("/custom")]
-/// fn my_custom_handler() -> &'static str { "custom" }
-///
-/// rocket::build()
-///     .manage(pool)
-///     .configure(configure_routes)  // Pre-built routes
-///     .mount("/", routes![my_custom_handler])  // Your routes
-/// ```
-///
-/// # Custom Path Prefix
-///
-/// To mount routes under a prefix, use [`routes()`] directly:
-///
-/// ```rust,ignore
-/// use html2pdf_api::integrations::rocket::routes;
-///
-/// rocket::build()
-///     .manage(pool)
-///     .mount("/api/v1", routes())
-/// // Routes will be: /api/v1/pdf, /api/v1/health, etc.
-/// ```
-pub fn configure_routes(rocket: Rocket<Build>) -> Rocket<Build> {
-    rocket.mount("/", routes())
-}
-
 /// Get all routes for manual mounting.
 ///
 /// Returns a vector of all pre-built routes, allowing you to mount them
@@ -893,13 +824,13 @@ pub fn configure_routes(rocket: Rocket<Build>) -> Rocket<Build> {
 /// # Example
 ///
 /// ```rust,ignore
-/// use html2pdf_api::integrations::rocket::routes;
+/// use html2pdf_api::integrations::rocket::configure_routes;
 ///
 /// // Mount at root
-/// rocket::build().mount("/", routes())
+/// rocket::build().mount("/", configure_routes())
 ///
 /// // Mount at custom prefix
-/// rocket::build().mount("/api/v1", routes())
+/// rocket::build().mount("/api/v1", configure_routes())
 /// ```
 ///
 /// # Routes Returned
@@ -909,7 +840,7 @@ pub fn configure_routes(rocket: Rocket<Build>) -> Rocket<Build> {
 /// - `GET /pool/stats` - [`pool_stats`]
 /// - `GET /health` - [`health_check`]
 /// - `GET /ready` - [`readiness_check`]
-pub fn routes() -> Vec<rocket::Route> {
+pub fn configure_routes() -> Vec<rocket::Route> {
     routes![
         pdf_from_url,
         pdf_from_html,
@@ -1157,7 +1088,7 @@ mod tests {
 
     #[test]
     fn test_routes_returns_all_endpoints() {
-        let all_routes = routes();
+        let all_routes = configure_routes();
         assert_eq!(all_routes.len(), 5);
     }
 }

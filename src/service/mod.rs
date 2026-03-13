@@ -381,6 +381,7 @@ mod tests {
 
     /// Verify all expected constants are exported.
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_constant_exports() {
         assert!(DEFAULT_TIMEOUT_SECS > 0);
         assert!(DEFAULT_WAIT_SECS > 0);

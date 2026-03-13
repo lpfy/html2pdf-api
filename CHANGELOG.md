@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-03-14
+
+### Added
+- Comprehensive Axum integration with pre-built handlers and `configure_routes()` function.
+- `axum_example.rs` demonstrating all integration patterns for Axum.
+
+### Changed
+- **Standardization**: Renamed Rocket's `routes()` function to `configure_routes()` to match Actix-web and Axum consistency.
+- **Improved Timeouts**: Increased default warmup and browser creation timeouts in examples to handle slow Chromium binary downloads on WSL/slow networks.
+- **Dependency Optimization**: Cleaned up unused imports and addressed `clippy` warnings across integrations and examples.
+
+### Fixed
+- Fixed Axum response building logic to correctly handle PDF data ownership.
+
 ## [0.2.7] - 2025-12-24
   ### Added
    - Examples for Rocket integration with pre-built handlers
