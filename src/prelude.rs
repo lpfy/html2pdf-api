@@ -38,7 +38,6 @@
 //! | Type | Description |
 //! |------|-------------|
 //! | [`Arc`] | Thread-safe reference counting |
-//! | [`Mutex`] | Mutual exclusion lock |
 //!
 //! ## Feature-Gated Exports
 //!
