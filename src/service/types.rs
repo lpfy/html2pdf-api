@@ -976,7 +976,6 @@ impl Default for HealthResponse {
 /// |------------|-------------|------------|
 /// | [`InvalidUrl`](Self::InvalidUrl) | 400 Bad Request | `INVALID_URL` |
 /// | [`EmptyHtml`](Self::EmptyHtml) | 400 Bad Request | `EMPTY_HTML` |
-/// | [`PoolLockFailed`](Self::PoolLockFailed) | 500 Internal Server Error | `POOL_LOCK_FAILED` |
 /// | [`BrowserUnavailable`](Self::BrowserUnavailable) | 503 Service Unavailable | `BROWSER_UNAVAILABLE` |
 /// | [`TabCreationFailed`](Self::TabCreationFailed) | 500 Internal Server Error | `TAB_CREATION_FAILED` |
 /// | [`NavigationFailed`](Self::NavigationFailed) | 502 Bad Gateway | `NAVIGATION_FAILED` |
@@ -997,7 +996,6 @@ impl Default for HealthResponse {
 /// ## Server Errors (5xx)
 ///
 /// These indicate problems on the server side:
-/// - [`PoolLockFailed`](Self::PoolLockFailed) - Internal synchronization issue
 /// - [`TabCreationFailed`](Self::TabCreationFailed) - Browser tab creation failed
 /// - [`Internal`](Self::Internal) - Unexpected internal error
 ///
@@ -1050,9 +1048,6 @@ impl Default for HealthResponse {
 ///         PdfServiceError::InvalidUrl(_) => false,
 ///         PdfServiceError::EmptyHtml => false,
 ///         
-///         // Server errors - maybe retry with backoff
-///         PdfServiceError::PoolLockFailed(_) => true,
-///         
 ///         // Fatal errors - don't retry
 ///         PdfServiceError::PoolShuttingDown => false,
 ///         
@@ -1104,22 +1099,6 @@ pub enum PdfServiceError {
     /// }
     /// ```
     EmptyHtml,
-
-    /// Failed to acquire the browser pool lock.
-    ///
-    /// This is an internal error indicating a synchronization problem,
-    /// typically caused by a poisoned mutex (previous panic while holding lock).
-    ///
-    /// # Causes
-    ///
-    /// - Mutex was poisoned by a previous panic
-    /// - Deadlock condition (should not happen with correct implementation)
-    ///
-    /// # Resolution
-    ///
-    /// This is a server-side issue. Restarting the service may help.
-    /// Check logs for previous panic messages.
-    PoolLockFailed(String),
 
     /// No browser is available in the pool.
     ///
@@ -1268,7 +1247,6 @@ impl std::fmt::Display for PdfServiceError {
         match self {
             Self::InvalidUrl(msg) => write!(f, "Invalid URL: {}", msg),
             Self::EmptyHtml => write!(f, "HTML content is required"),
-            Self::PoolLockFailed(msg) => write!(f, "Failed to lock pool: {}", msg),
             Self::BrowserUnavailable(msg) => write!(f, "Browser unavailable: {}", msg),
             Self::TabCreationFailed(msg) => write!(f, "Failed to create tab: {}", msg),
             Self::NavigationFailed(msg) => write!(f, "Navigation failed: {}", msg),
@@ -1316,7 +1294,7 @@ impl PdfServiceError {
             Self::InvalidUrl(_) | Self::EmptyHtml => 400,
 
             // Server errors (5xx)
-            Self::PoolLockFailed(_) | Self::TabCreationFailed(_) | Self::Internal(_) => 500,
+            Self::TabCreationFailed(_) | Self::Internal(_) => 500,
 
             // Bad gateway (upstream errors)
             Self::NavigationFailed(_) | Self::PdfGenerationFailed(_) => 502,
@@ -1340,7 +1318,6 @@ impl PdfServiceError {
     /// |------|------------|
     /// | `INVALID_URL` | Invalid or malformed URL |
     /// | `EMPTY_HTML` | Empty HTML content |
-    /// | `POOL_LOCK_FAILED` | Internal pool lock error |
     /// | `BROWSER_UNAVAILABLE` | No browsers available |
     /// | `TAB_CREATION_FAILED` | Failed to create browser tab |
     /// | `NAVIGATION_FAILED` | Failed to load URL |
@@ -1369,7 +1346,6 @@ impl PdfServiceError {
         match self {
             Self::InvalidUrl(_) => "INVALID_URL",
             Self::EmptyHtml => "EMPTY_HTML",
-            Self::PoolLockFailed(_) => "POOL_LOCK_FAILED",
             Self::BrowserUnavailable(_) => "BROWSER_UNAVAILABLE",
             Self::TabCreationFailed(_) => "TAB_CREATION_FAILED",
             Self::NavigationFailed(_) => "NAVIGATION_FAILED",
@@ -1392,9 +1368,6 @@ impl PdfServiceError {
     /// | Error | Retryable | Reason |
     /// |-------|-----------|--------|
     /// | `BrowserUnavailable` | ✅ | Pool may free up |
-    /// | `NavigationTimeout` | ✅ | Network may recover |
-    /// | `Timeout` | ✅ | Load may decrease |
-    /// | `PoolLockFailed` | ✅ | Rare, may recover |
     /// | `InvalidUrl` | ❌ | Client must fix |
     /// | `EmptyHtml` | ❌ | Client must fix |
     /// | `PoolShuttingDown` | ❌ | Intentional shutdown |
@@ -1419,7 +1392,6 @@ impl PdfServiceError {
             Self::BrowserUnavailable(_)
             | Self::NavigationTimeout(_)
             | Self::Timeout(_)
-            | Self::PoolLockFailed(_)
             | Self::TabCreationFailed(_) => true,
 
             // Client errors - must fix request
@@ -1611,10 +1583,6 @@ mod tests {
             400
         );
         assert_eq!(PdfServiceError::EmptyHtml.status_code(), 400);
-        assert_eq!(
-            PdfServiceError::PoolLockFailed("".to_string()).status_code(),
-            500
-        );
         assert_eq!(
             PdfServiceError::BrowserUnavailable("".to_string()).status_code(),
             503

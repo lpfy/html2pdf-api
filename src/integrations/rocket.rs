@@ -233,7 +233,7 @@ use rocket::{
     routes,
     serde::json::Json,
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::SharedBrowserPool;
@@ -250,8 +250,9 @@ use crate::service::{
 /// Type alias for shared browser pool.
 ///
 /// This is the standard pool type used by the service functions.
-/// It's an `Arc<Mutex<BrowserPool>>` which allows safe sharing across
-/// threads and handlers.
+/// It's an `Arc<BrowserPool>` which allows safe sharing across
+/// threads and handlers. No outer `Mutex` needed — the pool uses
+/// fine-grained internal locks.
 ///
 /// # Usage
 ///
@@ -259,12 +260,11 @@ use crate::service::{
 /// use html2pdf_api::integrations::rocket::SharedPool;
 ///
 /// fn my_function(pool: &SharedPool) {
-///     let guard = pool.lock().unwrap();
-///     let browser = guard.get().unwrap();
+///     let browser = pool.get().unwrap();
 ///     // ...
 /// }
 /// ```
-pub type SharedPool = Arc<Mutex<BrowserPool>>;
+pub type SharedPool = Arc<BrowserPool>;
 
 /// Type alias for Rocket `State` wrapper around the shared pool.
 ///
@@ -276,8 +276,7 @@ pub type SharedPool = Arc<Mutex<BrowserPool>>;
 ///
 /// #[get("/handler")]
 /// fn handler(pool: BrowserPoolState<'_>) -> &'static str {
-///     let pool_guard = pool.lock().unwrap();
-///     let browser = pool_guard.get().unwrap();
+///     let browser = pool.get().unwrap();
 ///     // ...
 ///     "done"
 /// }
@@ -917,7 +916,7 @@ pub trait BrowserPoolRocketExt {
     /// Convert the pool into a shared reference suitable for Rocket's managed state.
     ///
     /// This is equivalent to calling `into_shared()`, returning an
-    /// `Arc<Mutex<BrowserPool>>` that can be passed to `rocket.manage()`.
+    /// `Arc<BrowserPool>` that can be passed to `rocket.manage()`.
     ///
     /// # Example
     ///
@@ -998,7 +997,7 @@ pub fn create_pool_data(pool: SharedBrowserPool) -> SharedBrowserPool {
 /// // Use pool_data in rocket.manage()
 /// // Use pool_for_shutdown for cleanup in shutdown fairing
 /// ```
-pub fn create_pool_data_from_arc(pool: Arc<Mutex<BrowserPool>>) -> SharedBrowserPool {
+pub fn create_pool_data_from_arc(pool: Arc<BrowserPool>) -> SharedBrowserPool {
     pool
 }
 
@@ -1073,12 +1072,12 @@ mod tests {
         // SharedPool and SharedBrowserPool should be compatible
         fn _takes_shared_pool(_: SharedPool) {}
         fn _returns_shared_browser_pool() -> SharedBrowserPool {
-            Arc::new(Mutex::new(
+            Arc::new(
                 BrowserPool::builder()
                     .factory(Box::new(crate::factory::mock::MockBrowserFactory::new()))
                     .build()
                     .unwrap(),
-            ))
+            )
         }
 
         // This should compile, proving type compatibility

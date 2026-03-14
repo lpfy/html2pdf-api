@@ -29,7 +29,7 @@
 //! | [`BrowserFactory`] | Trait for browser creation strategies |
 //! | [`ChromeBrowserFactory`] | Default Chrome/Chromium factory |
 //! | [`Healthcheck`] | Trait for browser health checking |
-//! | [`SharedBrowserPool`] | Type alias for `Arc<Mutex<BrowserPool>>` |
+//! | [`SharedBrowserPool`] | Type alias for `Arc<BrowserPool>` |
 //!
 //! ## Standard Library Re-exports
 //!
@@ -141,9 +141,8 @@
 //!     // Reads BROWSER_POOL_SIZE, BROWSER_TTL_SECONDS, etc.
 //!     let pool = init_browser_pool().await?;
 //!
-//!     // Pool is Arc<Mutex<BrowserPool>>, ready for sharing
-//!     let guard = pool.lock().unwrap();
-//!     let browser = guard.get()?;
+//!     // Pool is Arc<BrowserPool>, ready for sharing
+//!     let browser = pool.get()?;
 //!     // ...
 //!
 //!     Ok(())
@@ -213,17 +212,15 @@
 //! use html2pdf_api::prelude::*;
 //!
 //! fn log_pool_status(pool: &SharedBrowserPool) {
-//!     if let Ok(guard) = pool.lock() {
-//!         let stats = guard.stats();
-//!         println!("Pool Status:");
-//!         println!("  Available: {}", stats.available);
-//!         println!("  Active: {}", stats.active);
-//!         println!("  Total: {}", stats.total);
-//!         
-//!         // Check capacity
-//!         if stats.available == 0 {
-//!             println!("  ⚠️ Warning: No idle browsers available");
-//!         }
+//!     let stats = pool.stats();
+//!     println!("Pool Status:");
+//!     println!("  Available: {}", stats.available);
+//!     println!("  Active: {}", stats.active);
+//!     println!("  Total: {}", stats.total);
+//!     
+//!     // Check capacity
+//!     if stats.available == 0 {
+//!         println!("  ⚠️ Warning: No idle browsers available");
 //!     }
 //! }
 //! ```
@@ -236,10 +233,7 @@
 //! use html2pdf_api::prelude::*;
 //!
 //! fn generate_pdf(pool: &SharedBrowserPool, url: &str) -> Result<Vec<u8>> {
-//!     let guard = pool.lock()
-//!         .map_err(|_| BrowserPoolError::PoolLock)?;
-//!
-//!     let browser = guard.get()?;  // Returns BrowserPoolError
+//!     let browser = pool.get()?;  // Returns BrowserPoolError
 //!     let tab = browser.new_tab()
 //!         .map_err(|e| BrowserPoolError::BrowserCreation(e.to_string()))?;
 //!
@@ -336,22 +330,15 @@ pub use crate::traits::Healthcheck;
 
 /// Type alias for a shared, thread-safe browser pool.
 ///
-/// This is defined as `Arc<Mutex<BrowserPool>>` and is the standard
+/// This is defined as `Arc<BrowserPool>` and is the standard
 /// way to share a pool across threads and async tasks.
+/// No outer `Mutex` is needed — the pool uses fine-grained internal locks.
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// use html2pdf_api::prelude::*;
 ///
-/// let pool: SharedBrowserPool = Arc::new(Mutex::new(
-///     BrowserPool::builder()
-///         .factory(Box::new(ChromeBrowserFactory::with_defaults()))
-///         .build()
-///         .unwrap()
-/// ));
-///
-/// // Or use the convenience method:
 /// let pool: SharedBrowserPool = BrowserPool::builder()
 ///     .factory(Box::new(ChromeBrowserFactory::with_defaults()))
 ///     .build()
@@ -378,20 +365,7 @@ pub use crate::SharedBrowserPool;
 /// ```
 pub use std::sync::Arc;
 
-/// Mutual exclusion primitive.
-///
-/// Re-exported for convenience when working with [`SharedBrowserPool`].
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use html2pdf_api::prelude::*;
-///
-/// let pool = init_browser_pool().await?;
-/// let guard = pool.lock().unwrap();  // Acquire lock
-/// let browser = guard.get()?;
-/// ```
-pub use std::sync::Mutex;
+// (Mutex re-export removed — no longer needed for SharedBrowserPool)
 
 // ============================================================================
 // Environment Configuration (env-config feature)
@@ -590,7 +564,7 @@ pub use crate::service::HealthResponse;
 /// | `pool_stats` | Handler for pool statistics |
 /// | `health_check` | Handler for health check |
 /// | `readiness_check` | Handler for readiness check |
-/// | `SharedPool` | Type alias for `Arc<Mutex<BrowserPool>>` |
+/// | `SharedPool` | Type alias for `Arc<BrowserPool>` |
 /// | `BrowserPoolData` | Type alias for `web::Data<SharedBrowserPool>` |
 /// | `BrowserPoolActixExt` | Extension trait for `BrowserPool` |
 ///
@@ -630,7 +604,7 @@ pub mod actix {
 /// | `pool_stats` | Handler for pool statistics |
 /// | `health_check` | Handler for health check |
 /// | `readiness_check` | Handler for readiness check |
-/// | `SharedPool` | Type alias for `Arc<Mutex<BrowserPool>>` |
+/// | `SharedPool` | Type alias for `Arc<BrowserPool>` |
 ///
 /// See [`crate::integrations::rocket`] for full documentation.
 #[cfg(feature = "rocket-integration")]
@@ -671,7 +645,7 @@ pub mod rocket {
 /// | `pool_stats` | Handler for pool statistics |
 /// | `health_check` | Handler for health check |
 /// | `readiness_check` | Handler for readiness check |
-/// | `SharedPool` | Type alias for `Arc<Mutex<BrowserPool>>` |
+/// | `SharedPool` | Type alias for `Arc<BrowserPool>` |
 ///
 /// See [`crate::integrations::axum`] for full documentation.
 #[cfg(feature = "axum-integration")]
@@ -699,11 +673,10 @@ mod tests {
         }
     }
 
-    /// Verify Arc and Mutex are re-exported.
+    /// Verify Arc is re-exported.
     #[test]
     fn test_std_reexports() {
         let _: Arc<i32> = Arc::new(42);
-        let _: Mutex<i32> = Mutex::new(42);
     }
 
     /// Verify SharedBrowserPool type alias works.
@@ -711,14 +684,14 @@ mod tests {
     fn test_shared_browser_pool_type() {
         fn _accepts_shared_pool(_: SharedBrowserPool) {}
 
-        // Verify it's Arc<Mutex<BrowserPool>>
+        // Verify it's Arc<BrowserPool>
         fn _verify_type() {
             let pool = BrowserPool::builder()
                 .factory(Box::new(crate::factory::mock::MockBrowserFactory::new()))
                 .build()
                 .unwrap();
 
-            let shared: SharedBrowserPool = Arc::new(Mutex::new(pool));
+            let shared: SharedBrowserPool = Arc::new(pool);
             _accepts_shared_pool(shared);
         }
     }

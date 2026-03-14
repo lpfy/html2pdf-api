@@ -103,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Reads configuration from environment variables
     let pool = init_browser_pool().await?;
     
-    // Pool is Arc<Mutex<BrowserPool>>, ready for web handlers
+    // Pool is Arc<BrowserPool>, ready for web handlers
     Ok(())
 }
 ```

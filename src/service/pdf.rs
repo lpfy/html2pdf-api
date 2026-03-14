@@ -69,9 +69,8 @@
 //!
 //! ```rust,ignore
 //! use html2pdf_api::service::{generate_pdf_from_url, PdfFromUrlRequest};
-//! use std::sync::Mutex;
 //!
-//! // Assuming `pool` is a Mutex<BrowserPool>
+//! // Assuming `pool` is a BrowserPool
 //! let request = PdfFromUrlRequest {
 //!     url: "https://example.com".to_string(),
 //!     ..Default::default()
@@ -145,7 +144,6 @@
 //! [`PdfServiceError`]: crate::service::PdfServiceError
 
 use headless_chrome::types::PrintToPdfOptions;
-use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crate::handle::BrowserHandle;
@@ -256,8 +254,7 @@ const JS_POLL_INTERVAL_MS: u64 = 200;
 ///
 /// # Arguments
 ///
-/// * `pool` - Reference to the mutex-wrapped browser pool. The mutex is held
-///   only briefly during browser checkout; PDF generation occurs outside the lock.
+/// * `pool` - Reference to the browser pool. The pool uses fine-grained internal locks;\n///   browser checkout is fast (~1ms) and concurrent.
 /// * `request` - PDF generation parameters. See [`PdfFromUrlRequest`] for details.
 ///
 /// # Returns
@@ -270,7 +267,6 @@ const JS_POLL_INTERVAL_MS: u64 = 200;
 /// | Error | Cause | Resolution |
 /// |-------|-------|------------|
 /// | [`InvalidUrl`] | URL is empty or malformed | Provide valid HTTP/HTTPS URL |
-/// | [`PoolLockFailed`] | Mutex poisoned | Restart service |
 /// | [`BrowserUnavailable`] | Pool exhausted | Retry or increase pool size |
 /// | [`TabCreationFailed`] | Browser issue | Automatic recovery |
 /// | [`NavigationFailed`] | URL unreachable | Check URL accessibility |
@@ -278,7 +274,6 @@ const JS_POLL_INTERVAL_MS: u64 = 200;
 /// | [`PdfGenerationFailed`] | Rendering issue | Simplify page or check content |
 ///
 /// [`InvalidUrl`]: PdfServiceError::InvalidUrl
-/// [`PoolLockFailed`]: PdfServiceError::PoolLockFailed
 /// [`BrowserUnavailable`]: PdfServiceError::BrowserUnavailable
 /// [`TabCreationFailed`]: PdfServiceError::TabCreationFailed
 /// [`NavigationFailed`]: PdfServiceError::NavigationFailed
@@ -345,7 +340,7 @@ const JS_POLL_INTERVAL_MS: u64 = 200;
 ///
 /// ```text
 /// ┌────────────────────────────────────────────────────────────────┐
-/// │ Pool lock + browser checkout                          ~1ms    │
+/// │ Browser checkout                                       ~1ms    │
 /// │ ├─────────────────────────────────────────────────────────────┤
 /// │ Tab creation                                          ~50ms   │
 /// │ ├─────────────────────────────────────────────────────────────┤
@@ -360,7 +355,7 @@ const JS_POLL_INTERVAL_MS: u64 = 200;
 /// Total: ~5.8 seconds (dominated by JS wait)
 /// ```
 pub fn generate_pdf_from_url(
-    pool: &Mutex<BrowserPool>,
+    pool: &BrowserPool,
     request: &PdfFromUrlRequest,
 ) -> Result<PdfResponse, PdfServiceError> {
     // Validate URL before acquiring browser
@@ -439,13 +434,11 @@ pub fn generate_pdf_from_url(
 /// | Error | Cause | Resolution |
 /// |-------|-------|------------|
 /// | [`EmptyHtml`] | HTML content is empty/whitespace | Provide HTML content |
-/// | [`PoolLockFailed`] | Mutex poisoned | Restart service |
 /// | [`BrowserUnavailable`] | Pool exhausted | Retry or increase pool size |
 /// | [`NavigationFailed`] | HTML parsing issue | Check HTML validity |
 /// | [`PdfGenerationFailed`] | Rendering issue | Simplify HTML |
 ///
 /// [`EmptyHtml`]: PdfServiceError::EmptyHtml
-/// [`PoolLockFailed`]: PdfServiceError::PoolLockFailed
 /// [`BrowserUnavailable`]: PdfServiceError::BrowserUnavailable
 /// [`NavigationFailed`]: PdfServiceError::NavigationFailed
 /// [`PdfGenerationFailed`]: PdfServiceError::PdfGenerationFailed
@@ -571,7 +564,7 @@ pub fn generate_pdf_from_url(
 /// let response = generate_pdf_from_html(&pool, &request)?;
 /// ```
 pub fn generate_pdf_from_html(
-    pool: &Mutex<BrowserPool>,
+    pool: &BrowserPool,
     request: &PdfFromHtmlRequest,
 ) -> Result<PdfResponse, PdfServiceError> {
     // Validate HTML content
@@ -633,18 +626,16 @@ pub fn generate_pdf_from_html(
 ///
 /// # Blocking Behavior
 ///
-/// This function blocks briefly (< 1ms typically) while holding the
-/// pool lock. It's generally safe to call from async contexts directly,
-/// but for consistency, you may still wrap it in a blocking task.
+/// This function is fast (< 1ms) as it reads from the pool's internal
+/// state. Safe to call frequently from health check endpoints.
 ///
 /// # Arguments
 ///
-/// * `pool` - Reference to the mutex-wrapped browser pool
+/// * `pool` - Reference to the browser pool
 ///
 /// # Returns
 ///
 /// * `Ok(PoolStatsResponse)` - Current pool statistics
-/// * `Err(PdfServiceError::PoolLockFailed)` - If mutex is poisoned
 ///
 /// # Examples
 ///
@@ -697,13 +688,8 @@ pub fn generate_pdf_from_html(
 ///     log::warn!("Pool utilization at {:.0}%, consider scaling", utilization * 100.0);
 /// }
 /// ```
-pub fn get_pool_stats(pool: &Mutex<BrowserPool>) -> Result<PoolStatsResponse, PdfServiceError> {
-    let pool_guard = pool.lock().map_err(|e| {
-        log::error!("Failed to lock browser pool for stats: {}", e);
-        PdfServiceError::PoolLockFailed(e.to_string())
-    })?;
-
-    let stats = pool_guard.stats();
+pub fn get_pool_stats(pool: &BrowserPool) -> Result<PoolStatsResponse, PdfServiceError> {
+    let stats = pool.stats();
 
     Ok(PoolStatsResponse {
         available: stats.available,
@@ -728,13 +714,12 @@ pub fn get_pool_stats(pool: &Mutex<BrowserPool>) -> Result<PoolStatsResponse, Pd
 ///
 /// # Arguments
 ///
-/// * `pool` - Reference to the mutex-wrapped browser pool
+/// * `pool` - Reference to the browser pool
 ///
 /// # Returns
 ///
 /// * `Ok(true)` - Pool can accept new requests
 /// * `Ok(false)` - Pool is at capacity, requests will queue
-/// * `Err(PdfServiceError::PoolLockFailed)` - If mutex is poisoned
 ///
 /// # Use Cases
 ///
@@ -781,14 +766,9 @@ pub fn get_pool_stats(pool: &Mutex<BrowserPool>) -> Result<PoolStatsResponse, Pd
 ///     generate_pdf_from_url(pool, &request)
 /// }
 /// ```
-pub fn is_pool_ready(pool: &Mutex<BrowserPool>) -> Result<bool, PdfServiceError> {
-    let pool_guard = pool.lock().map_err(|e| {
-        log::error!("Failed to lock browser pool for readiness check: {}", e);
-        PdfServiceError::PoolLockFailed(e.to_string())
-    })?;
-
-    let stats = pool_guard.stats();
-    let config = pool_guard.config();
+pub fn is_pool_ready(pool: &BrowserPool) -> Result<bool, PdfServiceError> {
+    let stats = pool.stats();
+    let config = pool.config();
 
     // Ready if we have available browsers OR we can create more
     let is_ready = stats.available > 0 || stats.active < config.max_pool_size;
@@ -886,15 +866,9 @@ fn validate_url(url: &str) -> Result<String, PdfServiceError> {
 ///
 /// * `Ok(BrowserHandle)` - A browser ready for use
 /// * `Err(PdfServiceError)` - If pool lock or browser acquisition fails
-fn acquire_browser(pool: &Mutex<BrowserPool>) -> Result<BrowserHandle, PdfServiceError> {
-    // Acquire lock on the pool
-    let pool_guard = pool.lock().map_err(|e| {
-        log::error!("❌ Failed to lock browser pool: {}", e);
-        PdfServiceError::PoolLockFailed(e.to_string())
-    })?;
-
-    // Get a browser from the pool
-    let browser = pool_guard.get().map_err(|e| {
+fn acquire_browser(pool: &BrowserPool) -> Result<BrowserHandle, PdfServiceError> {
+    // Get a browser from the pool (no outer lock needed — pool uses internal locks)
+    let browser = pool.get().map_err(|e| {
         log::error!("❌ Failed to get browser from pool: {}", e);
         PdfServiceError::BrowserUnavailable(e.to_string())
     })?;
@@ -902,7 +876,6 @@ fn acquire_browser(pool: &Mutex<BrowserPool>) -> Result<BrowserHandle, PdfServic
     log::debug!("Acquired browser {} from pool", browser.id());
 
     Ok(browser)
-    // pool_guard (MutexGuard) is dropped here, releasing the lock
 }
 
 /// Core PDF generation logic.

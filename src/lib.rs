@@ -96,7 +96,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let pool = init_browser_pool().await?;
-//!     // pool is Arc<Mutex<BrowserPool>>, ready for web handlers
+//!     // pool is Arc<BrowserPool>, ready for web handlers
 //!     Ok(())
 //! }
 //! ```
@@ -143,7 +143,7 @@
 //! use html2pdf_api::prelude::*;
 //!
 //! async fn generate_pdf(
-//!     pool: web::Data<Arc<Mutex<BrowserPool>>>,
+//!     pool: web::Data<Arc<BrowserPool>>,
 //! ) -> impl Responder {
 //!     let pool = pool.lock().unwrap();
 //!     let browser = pool.get()?;
@@ -159,7 +159,7 @@
 //!
 //! #[get("/pdf")]
 //! async fn generate_pdf(
-//!     pool: &State<Arc<Mutex<BrowserPool>>>,
+//!     pool: &State<Arc<BrowserPool>>,
 //! ) -> Result<Vec<u8>, Status> {
 //!     let pool = pool.lock().unwrap();
 //!     let browser = pool.get()?;
@@ -174,7 +174,7 @@
 //! use html2pdf_api::prelude::*;
 //!
 //! async fn generate_pdf(
-//!     Extension(pool): Extension<Arc<Mutex<BrowserPool>>>,
+//!     Extension(pool): Extension<Arc<BrowserPool>>,
 //! ) -> impl IntoResponse {
 //!     let pool = pool.lock().unwrap();
 //!     let browser = pool.get()?;
@@ -300,6 +300,7 @@ pub use pool::init_browser_pool;
 /// Shared browser pool type for web frameworks.
 ///
 /// This is the recommended type for sharing a pool across web handlers.
+/// `BrowserPool` uses fine-grained internal locks, so no outer `Mutex` is needed.
 ///
 /// # Example
 ///
@@ -308,4 +309,4 @@ pub use pool::init_browser_pool;
 ///
 /// let pool: SharedBrowserPool = browser_pool.into_shared();
 /// ```
-pub type SharedBrowserPool = std::sync::Arc<std::sync::Mutex<BrowserPool>>;
+pub type SharedBrowserPool = std::sync::Arc<BrowserPool>;

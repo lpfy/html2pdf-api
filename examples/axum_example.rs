@@ -191,14 +191,8 @@ async fn custom_pdf_handler(
 async fn manual_pdf_handler(
     State(pool): State<SharedBrowserPool>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    // Acquire lock on the pool
-    let pool_guard = pool.lock().map_err(|e| {
-        log::error!("Failed to lock pool: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    // Get a browser from the pool
-    let browser = pool_guard.get().map_err(|e| {
+    // Get a browser from the pool (no lock needed)
+    let browser = pool.get().map_err(|e| {
         log::error!("Failed to get browser: {}", e);
         StatusCode::SERVICE_UNAVAILABLE
     })?;
@@ -252,12 +246,7 @@ async fn manual_pdf_handler(
 async fn generate_pdf(
     State(pool): State<SharedBrowserPool>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let pool_guard = pool.lock().map_err(|e| {
-        log::error!("Failed to lock pool: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    let browser = pool_guard.get().map_err(|e| {
+    let browser = pool.get().map_err(|e| {
         log::error!("Failed to get browser: {}", e);
         StatusCode::SERVICE_UNAVAILABLE
     })?;
@@ -302,8 +291,7 @@ async fn generate_pdf(
 async fn legacy_pool_stats(
     State(pool): State<SharedBrowserPool>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let pool_guard = pool.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let stats = pool_guard.stats();
+    let stats = pool.stats();
 
     Ok(Json(serde_json::json!({
         "available": stats.available,
@@ -348,8 +336,8 @@ async fn shutdown_signal(pool: SharedBrowserPool) {
     log::info!("Shutdown signal received, cleaning up...");
 
     // Cleanup pool
-    if let Ok(mut pool_guard) = pool.lock() {
-        pool_guard.shutdown();
+    if let Some(mut pool) = Arc::into_inner(pool) {
+        pool.shutdown();
     }
 
     log::info!("Cleanup complete");
@@ -391,8 +379,8 @@ async fn main() {
     pool.warmup().await.expect("Failed to warmup pool");
     log::info!("Pool warmed up successfully");
 
-    // Convert to shared state
-    let shared_pool = Arc::new(std::sync::Mutex::new(pool));
+    // Convert to shared state (no Mutex needed)
+    let shared_pool = Arc::new(pool);
     let shutdown_pool = Arc::clone(&shared_pool);
 
     log::info!("Starting server on http://localhost:3000");

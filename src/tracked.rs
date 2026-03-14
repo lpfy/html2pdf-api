@@ -133,7 +133,7 @@ impl TrackedBrowser {
         let browser = Arc::new(browser);
         let created_at = Instant::now();
 
-        log::debug!(" Validating new browser instance...");
+        log::debug!("🔍 Validating new browser instance...");
 
         // Critical: Validate browser is functional before accepting it
         // This prevents adding dead browsers to the pool
@@ -315,7 +315,7 @@ impl Healthcheck for TrackedBrowser {
     /// }
     /// ```
     fn ping(&self) -> Result<()> {
-        log::trace!(" Pinging browser {}...", self.id);
+        log::trace!("⚡ Pinging browser {}...", self.id);
 
         // Create a test tab to verify browser is responsive
         let tab = self.browser.new_tab().map_err(|e| {

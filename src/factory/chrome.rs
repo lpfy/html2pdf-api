@@ -107,7 +107,7 @@ impl ChromeBrowserFactory {
     /// let factory = ChromeBrowserFactory::with_defaults();
     /// ```
     pub fn with_defaults() -> Self {
-        log::debug!(" Creating ChromeBrowserFactory with auto-detect");
+        log::debug!("🛠️ Creating ChromeBrowserFactory with auto-detect");
         Self::new(|| {
             create_chrome_options(None).map_err(|e| BrowserPoolError::Configuration(e.to_string()))
         })
@@ -161,13 +161,13 @@ impl BrowserFactory for ChromeBrowserFactory {
     /// * Returns [`BrowserPoolError::Configuration`] if launch options generation fails.
     /// * Returns [`BrowserPoolError::BrowserCreation`] if Chrome fails to launch.
     fn create(&self) -> Result<Browser> {
-        log::trace!(" ChromeBrowserFactory::create() called");
+        log::trace!("🛠️ ChromeBrowserFactory::create() called");
 
         // Generate launch options
         let options = (self.launch_options_fn)()?;
 
         // Launch browser
-        log::debug!(" Launching Chrome browser...");
+        log::debug!("🚀 Launching Chrome browser...");
         Browser::new(options).map_err(|e| {
             log::error!("❌ Chrome launch failed: {}", e);
             BrowserPoolError::BrowserCreation(e.to_string())
@@ -243,8 +243,8 @@ pub fn create_chrome_options(
     chrome_path: Option<&str>,
 ) -> std::result::Result<LaunchOptions<'static>, Box<dyn std::error::Error + Send + Sync>> {
     match chrome_path {
-        Some(path) => log::debug!(" Creating Chrome options with custom path: {}", path),
-        None => log::debug!(" Creating Chrome options (auto-detect browser)"),
+        Some(path) => log::debug!("🛠️ Creating Chrome options with custom path: {}", path),
+        None => log::debug!("🛠️ Creating Chrome options (auto-detect browser)"),
     }
 
     let mut builder = LaunchOptions::default_builder();
@@ -252,9 +252,9 @@ pub fn create_chrome_options(
     // Set path if provided, otherwise let headless_chrome auto-detect
     if let Some(path) = chrome_path {
         builder.path(Some(path.to_string().into()));
-        log::trace!(" Chrome path set to: {}", path);
+        log::trace!("📍 Chrome path set to: {}", path);
     } else {
-        log::trace!(" Chrome path: auto-detect");
+        log::trace!("🔍 Chrome path: auto-detect");
     }
 
     // Configure launch options for stable headless operation

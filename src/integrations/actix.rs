@@ -224,7 +224,7 @@
 //! | [`BrowserPoolActixExt`] | Adds `into_actix_data()` to `BrowserPool` |
 
 use actix_web::{HttpResponse, Responder, http::header, web};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::SharedBrowserPool;
@@ -241,8 +241,9 @@ use crate::service::{
 /// Type alias for shared browser pool.
 ///
 /// This is the standard pool type used by the service functions.
-/// It's an `Arc<Mutex<BrowserPool>>` which allows safe sharing across
-/// threads and handlers.
+/// It's an `Arc<BrowserPool>` which allows safe sharing across
+/// threads and handlers. No outer `Mutex` needed — the pool uses
+/// fine-grained internal locks.
 ///
 /// # Usage
 ///
@@ -250,12 +251,11 @@ use crate::service::{
 /// use html2pdf_api::integrations::actix::SharedPool;
 ///
 /// fn my_function(pool: &SharedPool) {
-///     let guard = pool.lock().unwrap();
-///     let browser = guard.get().unwrap();
+///     let browser = pool.get().unwrap();
 ///     // ...
 /// }
 /// ```
-pub type SharedPool = Arc<Mutex<BrowserPool>>;
+pub type SharedPool = Arc<BrowserPool>;
 
 /// Type alias for Actix-web `Data` wrapper around the shared pool.
 ///
@@ -265,8 +265,7 @@ pub type SharedPool = Arc<Mutex<BrowserPool>>;
 /// use html2pdf_api::integrations::actix::BrowserPoolData;
 ///
 /// async fn handler(pool: BrowserPoolData) -> impl Responder {
-///     let pool_guard = pool.lock().unwrap();
-///     let browser = pool_guard.get()?;
+///     let browser = pool.get().unwrap();
 ///     // ...
 /// }
 /// ```
@@ -876,7 +875,7 @@ pub fn create_pool_data(pool: SharedBrowserPool) -> BrowserPoolData {
 /// // Use pool_data in App
 /// // Use pool_for_shutdown for cleanup
 /// ```
-pub fn create_pool_data_from_arc(pool: Arc<std::sync::Mutex<BrowserPool>>) -> BrowserPoolData {
+pub fn create_pool_data_from_arc(pool: Arc<BrowserPool>) -> BrowserPoolData {
     web::Data::new(pool)
 }
 
@@ -900,12 +899,12 @@ mod tests {
         // SharedPool and SharedBrowserPool should be compatible
         fn _takes_shared_pool(_: SharedPool) {}
         fn _returns_shared_browser_pool() -> SharedBrowserPool {
-            Arc::new(std::sync::Mutex::new(
+            Arc::new(
                 BrowserPool::builder()
                     .factory(Box::new(crate::factory::mock::MockBrowserFactory::new()))
                     .build()
                     .unwrap(),
-            ))
+            )
         }
 
         // This should compile, proving type compatibility

@@ -544,11 +544,11 @@ pub mod env {
         // Load app.env file if present (ignore errors if not found)
         match load_env_file() {
             Ok(path) => {
-                log::info!("� Loaded configuration from: {:?}", path);
+                log::info!("⚙️ Loaded configuration from: {:?}", path);
             }
             Err(e) => {
                 log::debug!(
-                    "� No {} file found or failed to load: {} (using environment variables and defaults)",
+                    "⚠️ No {} file found or failed to load: {} (using environment variables and defaults)",
                     ENV_FILE_NAME,
                     e
                 );

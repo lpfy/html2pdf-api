@@ -131,7 +131,7 @@
 //! use std::sync::{Arc, Mutex};
 //!
 //! async fn custom_pdf_handler(
-//!     pool: web::Data<Arc<Mutex<BrowserPool>>>,
+//!     pool: web::Data<Arc<BrowserPool>>,
 //!     query: web::Query<PdfFromUrlRequest>,
 //! ) -> HttpResponse {
 //!     // Add custom logic: authentication, rate limiting, logging, etc.
@@ -180,7 +180,7 @@
 //! };
 //! use std::sync::Mutex;
 //!
-//! fn batch_convert(pool: &Mutex<BrowserPool>, urls: Vec<String>) -> Vec<Result<Vec<u8>, PdfServiceError>> {
+//! fn batch_convert(pool: &BrowserPool, urls: Vec<String>) -> Vec<Result<Vec<u8>, PdfServiceError>> {
 //!     urls.into_iter()
 //!         .map(|url| {
 //!             let request = PdfFromUrlRequest {
@@ -193,7 +193,7 @@
 //!         .collect()
 //! }
 //!
-//! fn generate_report(pool: &Mutex<BrowserPool>, html: String) -> Result<(), Box<dyn std::error::Error>> {
+//! fn generate_report(pool: &BrowserPool, html: String) -> Result<(), Box<dyn std::error::Error>> {
 //!     let request = PdfFromHtmlRequest {
 //!         html,
 //!         filename: Some("report.pdf".to_string()),

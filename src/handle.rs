@@ -226,7 +226,7 @@ impl Drop for BrowserHandle {
     fn drop(&mut self) {
         if let Some(tracked) = self.tracked.take() {
             log::debug!(
-                " BrowserHandle {} being dropped, returning to pool...",
+                "♻️ BrowserHandle {} being dropped, returning to pool...",
                 tracked.id()
             );
 

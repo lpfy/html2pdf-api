@@ -210,7 +210,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::SharedBrowserPool;
@@ -227,7 +227,7 @@ use crate::service::{
 /// Type alias for shared browser pool.
 ///
 /// This is the standard pool type used by the service functions.
-pub type SharedPool = Arc<Mutex<BrowserPool>>;
+pub type SharedPool = Arc<BrowserPool>;
 
 /// Type alias for Axum `State` extractor with the shared pool.
 ///
@@ -237,8 +237,7 @@ pub type SharedPool = Arc<Mutex<BrowserPool>>;
 /// async fn handler(
 ///     BrowserPoolState(pool): BrowserPoolState,
 /// ) -> impl IntoResponse {
-///     let pool = pool.lock().unwrap();
-///     let browser = pool.get()?;
+///     let browser = pool.get().unwrap();
 ///     // ...
 /// }
 /// ```

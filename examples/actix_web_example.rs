@@ -154,17 +154,8 @@ async fn custom_pdf_handler(
 /// This is the original approach from the existing example.
 /// Use this when you need complete control over browser operations.
 async fn manual_pdf_handler(pool: web::Data<SharedBrowserPool>) -> impl Responder {
-    // Acquire lock on the pool
-    let pool_guard = match pool.lock() {
-        Ok(guard) => guard,
-        Err(e) => {
-            log::error!("Failed to lock pool: {}", e);
-            return HttpResponse::InternalServerError().body("Pool lock failed");
-        }
-    };
-
-    // Get a browser from the pool
-    let browser = match pool_guard.get() {
+    // Get a browser from the pool (no lock needed)
+    let browser = match pool.get() {
         Ok(b) => b,
         Err(e) => {
             log::error!("Failed to get browser: {}", e);
@@ -224,15 +215,7 @@ async fn manual_pdf_handler(pool: web::Data<SharedBrowserPool>) -> impl Responde
 ///
 /// Kept for backward compatibility - demonstrates the manual approach.
 async fn generate_pdf(pool: web::Data<SharedBrowserPool>) -> impl Responder {
-    let pool_guard = match pool.lock() {
-        Ok(guard) => guard,
-        Err(e) => {
-            log::error!("Failed to lock pool: {}", e);
-            return HttpResponse::InternalServerError().body("Pool lock failed");
-        }
-    };
-
-    let browser = match pool_guard.get() {
+    let browser = match pool.get() {
         Ok(b) => b,
         Err(e) => {
             log::error!("Failed to get browser: {}", e);
@@ -278,12 +261,7 @@ async fn generate_pdf(pool: web::Data<SharedBrowserPool>) -> impl Responder {
 
 /// Original pool_stats handler from existing example.
 async fn legacy_pool_stats(pool: web::Data<SharedBrowserPool>) -> impl Responder {
-    let pool_guard = match pool.lock() {
-        Ok(guard) => guard,
-        Err(_) => return HttpResponse::InternalServerError().body("Pool lock failed"),
-    };
-
-    let stats = pool_guard.stats();
+    let stats = pool.stats();
 
     HttpResponse::Ok().json(serde_json::json!({
         "available": stats.available,
@@ -341,8 +319,8 @@ async fn main() -> std::io::Result<()> {
     pool.warmup().await.expect("Failed to warmup pool");
     log::info!("Pool warmed up successfully");
 
-    // Convert to shared state
-    let shared_pool: SharedBrowserPool = Arc::new(std::sync::Mutex::new(pool));
+    // Convert to shared state (no Mutex needed)
+    let shared_pool: SharedBrowserPool = Arc::new(pool);
     let shutdown_pool = Arc::clone(&shared_pool);
 
     log::info!("Starting server on http://localhost:8080");
@@ -403,7 +381,7 @@ async fn main() -> std::io::Result<()> {
 
     // Cleanup pool
     log::info!("Server stopped, cleaning up browser pool...");
-    if let Ok(mut pool) = shutdown_pool.lock() {
+    if let Some(mut pool) = Arc::into_inner(shutdown_pool) {
         pool.shutdown();
     }
     log::info!("Cleanup complete");

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-14
+
+### ⚠️ Breaking Changes
+- **`SharedBrowserPool` type changed** from `Arc<Mutex<BrowserPool>>` to `Arc<BrowserPool>`. Callers no longer need to `.lock()` the pool before use — the pool uses fine-grained internal locks for thread safety.
+- **`SharedPool` type aliases updated** in all integration modules (actix, axum, rocket) to match the new `Arc<BrowserPool>` type.
+- **`PdfServiceError::PoolLockFailed` variant removed** — no longer applicable without the outer mutex.
+- **`Mutex` no longer re-exported from `prelude`** — use `std::sync::Mutex` directly if needed elsewhere.
+
+### Changed
+- All service functions (`generate_pdf_from_url`, `generate_pdf_from_html`, `get_pool_stats`, `is_pool_ready`, `acquire_browser`) now accept `&BrowserPool` instead of `&Mutex<BrowserPool>`.
+- Integration handler signatures and helper functions updated for the new pool type.
+- All example files updated to remove `.lock()` calls and use `Arc::new(pool)` directly.
+
+### Fixed
+- **Mutex poison safety**: All 16 internal `.lock().unwrap()` calls in `pool.rs` replaced with `.unwrap_or_else(|poisoned| poisoned.into_inner())` poison recovery, preventing cascading panics from a single thread failure.
+
 ## [0.2.8] - 2026-03-14
 
 ### Added

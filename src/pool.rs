@@ -157,11 +157,11 @@ impl BrowserPoolInner {
     /// Panics if called outside a tokio runtime context.
     pub(crate) fn new(config: BrowserPoolConfig, factory: Box<dyn BrowserFactory>) -> Arc<Self> {
         log::info!(
-            " Initializing browser pool with capacity {}",
+            "🚀 Initializing browser pool with capacity {}",
             config.max_pool_size
         );
         log::debug!(
-            " Pool config: warmup={}, TTL={}s, ping_interval={}s",
+            "📋 Pool config: warmup={}, TTL={}s, ping_interval={}s",
             config.warmup_count,
             config.browser_ttl.as_secs(),
             config.ping_interval.as_secs()
@@ -201,11 +201,11 @@ impl BrowserPoolInner {
     pub(crate) fn create_browser_direct(&self) -> Result<TrackedBrowser> {
         // Early exit if shutting down (don't waste time creating browsers)
         if self.shutting_down.load(Ordering::Acquire) {
-            log::debug!(" Skipping browser creation - pool is shutting down");
+            log::debug!("🛑 Skipping browser creation - pool is shutting down");
             return Err(BrowserPoolError::ShuttingDown);
         }
 
-        log::debug!("️ Creating new browser directly via factory...");
+        log::debug!("📦 Creating new browser directly via factory...");
 
         // Factory handles all Chrome launch complexity
         let browser = self.factory.create()?;
@@ -219,7 +219,7 @@ impl BrowserPoolInner {
         if let Ok(mut active) = self.active.lock() {
             active.insert(id, tracked.clone());
             log::debug!(
-                " Browser {} added to active tracking (total active: {})",
+                "📊 Browser {} added to active tracking (total active: {})",
                 id,
                 active.len()
             );
@@ -261,16 +261,19 @@ impl BrowserPoolInner {
     /// - Returns [`BrowserPoolError::ShuttingDown`] if pool is shutting down.
     /// - Returns [`BrowserPoolError::BrowserCreation`] if new browser creation fails.
     pub(crate) fn get_or_create_browser(self: &Arc<Self>) -> Result<BrowserHandle> {
-        log::debug!(" Attempting to get browser from pool...");
+        log::debug!("🔍 Attempting to get browser from pool...");
 
         // Try to get from pool - LOOP pattern to avoid holding lock during health checks
         // This is critical for concurrency: we release the lock between attempts
         loop {
             // Acquire lock briefly to pop one browser
             let tracked_opt = {
-                let mut available = self.available.lock().unwrap();
+                let mut available = self.available.lock().unwrap_or_else(|poisoned| {
+                    log::warn!("Pool available lock poisoned, recovering");
+                    poisoned.into_inner()
+                });
                 let popped = available.pop();
-                log::trace!(" Pool size after pop: {}", available.len());
+                log::trace!("📊 Pool size after pop: {}", available.len());
                 popped
             }; // Lock released here - critical for performance
 
@@ -299,7 +302,7 @@ impl BrowserPoolInner {
                 }
                 // === LOGIC END: Grace Period Check ===
 
-                log::debug!(" Testing browser {} from pool for health...", tracked.id());
+                log::debug!("🔍 Testing browser {} from pool for health...", tracked.id());
 
                 // Detailed health check WITHOUT holding any locks
                 // This prevents blocking other threads during I/O
@@ -330,7 +333,10 @@ impl BrowserPoolInner {
 
                                         // Get pool size for logging (brief lock)
                                         let pool_size = {
-                                            let available = self.available.lock().unwrap();
+                                            let available = self.available.lock().unwrap_or_else(|poisoned| {
+                    log::warn!("Pool available lock poisoned, recovering");
+                    poisoned.into_inner()
+                });
                                             available.len()
                                         };
 
@@ -373,26 +379,29 @@ impl BrowserPoolInner {
                 // If we reach here, health check failed
                 // Remove from active tracking (browser is dead)
                 log::warn!(
-                    "️ Removing unhealthy browser {} from active tracking",
+                    "🗑️ Removing unhealthy browser {} from active tracking",
                     tracked.id()
                 );
                 {
-                    let mut active = self.active.lock().unwrap();
+                    let mut active = self.active.lock().unwrap_or_else(|poisoned| {
+                    log::warn!("Pool active lock poisoned, recovering");
+                    poisoned.into_inner()
+                });
                     active.remove(&tracked.id());
-                    log::debug!(" Active browsers after removal: {}", active.len());
+                    log::debug!("📊 Active browsers after removal: {}", active.len());
                 }
 
                 // Continue loop to try next browser in pool
-                log::debug!(" Trying next browser from pool...");
+                log::debug!("🔍 Trying next browser from pool...");
             } else {
                 // Pool is empty, break to create new browser
-                log::debug!(" Pool is empty, will create new browser");
+                log::debug!("📥 Pool is empty, will create new browser");
                 break;
             }
         }
 
         // Pool is empty or no healthy browsers found
-        log::info!("️ Creating new browser (pool was empty or all browsers unhealthy)");
+        log::info!("📦 Creating new browser (pool was empty or all browsers unhealthy)");
 
         let tracked = self.create_browser_direct()?;
 
@@ -420,12 +429,12 @@ impl BrowserPoolInner {
     /// * `self_arc` - Arc reference to self (needed for spawning async tasks).
     /// * `tracked` - The browser being returned.
     pub(crate) fn return_browser(self_arc: &Arc<Self>, tracked: TrackedBrowser) {
-        log::debug!(" Returning browser {} to pool...", tracked.id());
+        log::debug!("♻️ Returning browser {} to pool...", tracked.id());
 
         // Early exit if shutting down (don't waste time managing pool)
         if self_arc.shutting_down.load(Ordering::Acquire) {
             log::debug!(
-                " Pool shutting down, not returning browser {}",
+                "🛑 Pool shutting down, not returning browser {}",
                 tracked.id()
             );
             return;
@@ -436,8 +445,14 @@ impl BrowserPoolInner {
         // - Prevents concurrent modifications to browser state
         // - Prevents duplicate returns
         // - Ensures pool size limits are respected
-        let mut active = self_arc.active.lock().unwrap();
-        let mut pool = self_arc.available.lock().unwrap();
+        let mut active = self_arc.active.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Pool active lock poisoned, recovering");
+            poisoned.into_inner()
+        });
+        let mut pool = self_arc.available.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Pool available lock poisoned, recovering");
+            poisoned.into_inner()
+        });
 
         // Verify browser is actually tracked (sanity check)
         if !active.contains_key(&tracked.id()) {
@@ -460,14 +475,14 @@ impl BrowserPoolInner {
 
             // Remove from active tracking
             active.remove(&tracked.id());
-            log::debug!(" Active browsers after TTL retirement: {}", active.len());
+            log::debug!("📊 Active browsers after TTL retirement: {}", active.len());
 
             // Release locks before spawning replacement task
             drop(active);
             drop(pool);
 
             // Trigger async replacement creation (non-blocking)
-            log::debug!(" Triggering replacement browser creation for expired browser");
+            log::debug!("🔍 Triggering replacement browser creation for expired browser");
             Self::spawn_replacement_creation(Arc::clone(self_arc), 1);
             return;
         }
@@ -500,7 +515,7 @@ impl BrowserPoolInner {
                 tracked.id()
             );
             active.remove(&tracked.id());
-            log::debug!(" Active browsers after removal: {}", active.len());
+            log::debug!("📊 Active browsers after removal: {}", active.len());
         }
     }
 
@@ -523,7 +538,7 @@ impl BrowserPoolInner {
     /// * `count` - Number of browsers to attempt to create.
     async fn spawn_replacement_creation_async(inner: Arc<Self>, count: usize) {
         log::info!(
-            " Starting async replacement creation for {} browsers",
+            "🔍 Starting async replacement creation for {} browsers",
             count
         );
 
@@ -534,7 +549,7 @@ impl BrowserPoolInner {
             // Check shutdown flag before each expensive operation
             if inner.shutting_down.load(Ordering::Acquire) {
                 log::info!(
-                    " Shutdown detected during replacement creation, stopping at {}/{}",
+                    "🛑 Shutdown detected during replacement creation, stopping at {}/{}",
                     i,
                     count
                 );
@@ -543,10 +558,13 @@ impl BrowserPoolInner {
 
             // Check if pool has space BEFORE creating (avoid wasted work)
             let pool_has_space = {
-                let pool = inner.available.lock().unwrap();
+                let pool = inner.available.lock().unwrap_or_else(|poisoned| {
+                    log::warn!("Pool available lock poisoned, recovering");
+                    poisoned.into_inner()
+                });
                 let has_space = pool.len() < inner.config.max_pool_size;
                 log::trace!(
-                    " Pool space check: {}/{} (has space: {})",
+                    "📊 Pool space check: {}/{} (has space: {})",
                     pool.len(),
                     inner.config.max_pool_size,
                     has_space
@@ -563,7 +581,7 @@ impl BrowserPoolInner {
                 break;
             }
 
-            log::debug!("️ Creating replacement browser {}/{}", i + 1, count);
+            log::debug!("📦 Creating replacement browser {}/{}", i + 1, count);
 
             // Use spawn_blocking for CPU-bound browser creation
             // This prevents blocking the async runtime
@@ -576,7 +594,10 @@ impl BrowserPoolInner {
                     let id = tracked.id();
 
                     // Add to pool (with space check to handle race conditions)
-                    let mut pool = inner.available.lock().unwrap();
+                    let mut pool = inner.available.lock().unwrap_or_else(|poisoned| {
+                        log::warn!("Pool available lock poisoned, recovering");
+                        poisoned.into_inner()
+                    });
 
                     // Double-check space (another thread might have added browsers)
                     if pool.len() < inner.config.max_pool_size {
@@ -618,11 +639,17 @@ impl BrowserPoolInner {
         }
 
         // Final status report
-        let pool_size = inner.available.lock().unwrap().len();
-        let active_size = inner.active.lock().unwrap().len();
+        let pool_size = inner.available.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Pool available lock poisoned, recovering");
+            poisoned.into_inner()
+        }).len();
+        let active_size = inner.active.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Pool active lock poisoned, recovering");
+            poisoned.into_inner()
+        }).len();
 
         log::info!(
-            " Replacement creation completed: {}/{} created, {} failed. Pool: {}, Active: {}",
+            "🏁 Replacement creation completed: {}/{} created, {} failed. Pool: {}, Active: {}",
             created_count,
             count,
             failed_count,
@@ -651,7 +678,7 @@ impl BrowserPoolInner {
     /// * `count` - Number of replacement browsers to create.
     pub(crate) fn spawn_replacement_creation(inner: Arc<Self>, count: usize) {
         log::info!(
-            " Spawning async task to create {} replacement browsers",
+            "📥 Spawning async task to create {} replacement browsers",
             count
         );
 
@@ -671,13 +698,13 @@ impl BrowserPoolInner {
             let cleaned = original_count - tasks.len();
 
             if cleaned > 0 {
-                log::trace!("粒 Cleaned up {} finished replacement tasks", cleaned);
+                log::trace!("🧹 Cleaned up {} finished replacement tasks", cleaned);
             }
 
             // Add new task
             tasks.push(task_handle);
 
-            log::debug!(" Now tracking {} active replacement tasks", tasks.len());
+            log::debug!("📋 Now tracking {} active replacement tasks", tasks.len());
         } else {
             log::warn!("⚠️ Failed to track replacement task (poisoned lock)");
         }
@@ -721,7 +748,10 @@ impl BrowserPoolInner {
     ///
     /// Returns a cloned list to avoid holding locks during I/O.
     pub(crate) fn get_active_browsers_snapshot(&self) -> Vec<(u64, TrackedBrowser)> {
-        let active = self.active.lock().unwrap();
+        let active = self.active.lock().unwrap_or_else(|poisoned| {
+                    log::warn!("Pool active lock poisoned, recovering");
+                    poisoned.into_inner()
+                });
         active
             .iter()
             .map(|(id, tracked)| (*id, tracked.clone()))
@@ -730,18 +760,24 @@ impl BrowserPoolInner {
 
     /// Remove a browser from active tracking.
     pub(crate) fn remove_from_active(&self, id: u64) -> Option<TrackedBrowser> {
-        let mut active = self.active.lock().unwrap();
+        let mut active = self.active.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Pool active lock poisoned, recovering");
+            poisoned.into_inner()
+        });
         active.remove(&id)
     }
 
     /// Remove browsers from the available pool by ID.
     pub(crate) fn remove_from_available(&self, ids: &[u64]) {
-        let mut pool = self.available.lock().unwrap();
+        let mut pool = self.available.lock().unwrap_or_else(|poisoned| {
+                    log::warn!("Pool available lock poisoned, recovering");
+                    poisoned.into_inner()
+                });
         let original_size = pool.len();
         pool.retain(|b| !ids.contains(&b.id()));
         let removed = original_size - pool.len();
         if removed > 0 {
-            log::debug!("️ Removed {} browsers from available pool", removed);
+            log::debug!("🗑️ Removed {} browsers from available pool", removed);
         }
     }
 
@@ -814,8 +850,9 @@ impl BrowserPoolInner {
 ///
 /// # Thread Safety
 ///
-/// `BrowserPool` is `Send` and can be wrapped in `Arc<Mutex<>>` for sharing
-/// across threads. Use [`into_shared()`](Self::into_shared) for convenience.
+/// `BrowserPool` uses fine-grained internal locks (`Mutex<Vec>`, `Mutex<HashMap>`)
+/// so it is safe to share as `Arc<BrowserPool>` without an outer `Mutex`.
+/// Use [`into_shared()`](Self::into_shared) for convenience.
 pub struct BrowserPool {
     /// Shared internal state.
     inner: Arc<BrowserPoolInner>,
@@ -827,9 +864,10 @@ pub struct BrowserPool {
 }
 
 impl BrowserPool {
-    /// Convert pool into a shared `Arc<Mutex<>>` for use in web handlers.
+    /// Convert pool into a shared `Arc<BrowserPool>` for use in web handlers.
     ///
     /// This is convenient for web frameworks that need shared state.
+    /// No outer `Mutex` is needed — the pool uses fine-grained internal locks.
     ///
     /// # Example
     ///
@@ -842,9 +880,9 @@ impl BrowserPool {
     /// // Can now be cloned and shared across handlers
     /// let pool_clone = Arc::clone(&pool);
     /// ```
-    pub fn into_shared(self) -> Arc<Mutex<BrowserPool>> {
-        log::debug!(" Converting BrowserPool into shared Arc<Mutex<>>");
-        Arc::new(Mutex::new(self))
+    pub fn into_shared(self) -> Arc<BrowserPool> {
+        log::debug!("🔍 Converting BrowserPool into shared Arc<BrowserPool>");
+        Arc::new(self)
     }
 
     /// Create a new builder for constructing a BrowserPool.
@@ -887,7 +925,7 @@ impl BrowserPool {
     /// // browser returned automatically when it goes out of scope
     /// ```
     pub fn get(&self) -> Result<BrowserHandle> {
-        log::trace!(" BrowserPool::get() called");
+        log::trace!("🎯 BrowserPool::get() called");
         self.inner.get_or_create_browser()
     }
 
@@ -910,7 +948,7 @@ impl BrowserPool {
         let available = self.inner.available_count();
         let active = self.inner.active_count();
 
-        log::trace!(" Pool stats: available={}, active={}", available, active);
+        log::trace!("📊 Pool stats: available={}, active={}", available, active);
 
         PoolStats {
             available,
@@ -989,7 +1027,7 @@ impl BrowserPool {
         let warmup_timeout = self.inner.config().warmup_timeout;
 
         log::info!(
-            " Starting browser pool warmup with {} instances (timeout: {}s)",
+            "🔥 Starting browser pool warmup with {} instances (timeout: {}s)",
             count,
             warmup_timeout.as_secs()
         );
@@ -1026,7 +1064,7 @@ impl BrowserPool {
     /// Creates browsers sequentially with a delay between them.
     /// This ensures they don't all reach their TTL (expiration) at the exact same moment.
     async fn warmup_internal(&self, count: usize) -> Result<()> {
-        log::debug!(" Starting internal warmup process for {} browsers", count);
+        log::debug!("🛠️ Starting internal warmup process for {} browsers", count);
 
         // STAGGER CONFIGURATION
         // We wait this long between creations to distribute expiration times
@@ -1037,7 +1075,7 @@ impl BrowserPool {
         let mut failed_count = 0;
 
         for i in 0..count {
-            log::debug!(" Creating startup browser instance {}/{}", i + 1, count);
+            log::debug!("🌐 Creating startup browser instance {}/{}", i + 1, count);
 
             // Per-browser timeout (15s per browser is reasonable)
             // This prevents one slow browser from blocking entire warmup
@@ -1141,13 +1179,13 @@ impl BrowserPool {
         }
 
         log::info!(
-            " Warmup creation phase: {} created, {} failed",
+            "📊 Warmup creation phase: {} created, {} failed",
             created_count,
             failed_count
         );
 
         // Return all browsers to pool by dropping handles
-        log::debug!(" Returning {} warmup browsers to pool...", handles.len());
+        log::debug!("🔍 Returning {} warmup browsers to pool...", handles.len());
         drop(handles);
 
         // Small delay to ensure Drop handlers complete
@@ -1155,7 +1193,7 @@ impl BrowserPool {
 
         let final_stats = self.stats();
         log::info!(
-            " Warmup internal completed - Pool: {}, Active: {}",
+            "🏁 Warmup internal completed - Pool: {}, Active: {}",
             final_stats.available,
             final_stats.active
         );
@@ -1191,14 +1229,14 @@ impl BrowserPool {
         let shutdown_signal = Arc::clone(inner.shutdown_signal());
 
         log::info!(
-            " Starting keep-alive thread (interval: {}s, max failures: {}, TTL: {}min)",
+            "🚀 Starting keep-alive thread (interval: {}s, max failures: {}, TTL: {}min)",
             ping_interval.as_secs(),
             max_failures,
             browser_ttl.as_secs() / 60
         );
 
         thread::spawn(move || {
-            log::info!(" Keep-alive thread started successfully");
+            log::info!("🏁 Keep-alive thread started successfully");
 
             // Track consecutive failures per browser ID
             let mut failure_counts: HashMap<u64, u32> = HashMap::new();
@@ -1208,8 +1246,14 @@ impl BrowserPool {
                 // Using condvar instead of sleep allows immediate wake-up on shutdown
                 let (lock, cvar) = &*shutdown_signal;
                 let wait_result = {
-                    let shutdown = lock.lock().unwrap();
-                    cvar.wait_timeout(shutdown, ping_interval).unwrap()
+                    let shutdown = lock.lock().unwrap_or_else(|poisoned| {
+                        log::warn!("Shutdown lock poisoned, recovering");
+                        poisoned.into_inner()
+                    });
+                    cvar.wait_timeout(shutdown, ping_interval).unwrap_or_else(|poisoned| {
+                        log::warn!("Condvar wait_timeout lock poisoned, recovering");
+                        poisoned.into_inner()
+                    })
                 };
 
                 let shutdown_flag = *wait_result.0;
@@ -1217,13 +1261,13 @@ impl BrowserPool {
 
                 // Check if we were signaled to shutdown
                 if shutdown_flag {
-                    log::info!(" Keep-alive received shutdown signal via condvar");
+                    log::info!("🛑 Keep-alive received shutdown signal via condvar");
                     break;
                 }
 
                 // Double-check atomic shutdown flag (belt and suspenders)
                 if inner.is_shutting_down() {
-                    log::info!(" Keep-alive detected shutdown via atomic flag");
+                    log::info!("🛑 Keep-alive detected shutdown via atomic flag");
                     break;
                 }
 
@@ -1233,7 +1277,7 @@ impl BrowserPool {
                     continue;
                 }
 
-                log::trace!(" Keep-alive ping cycle starting...");
+                log::trace!("⚡ Keep-alive ping cycle starting...");
 
                 // Collect browsers to ping WITHOUT holding locks
                 // This is critical: we clone the list and release the lock
@@ -1465,7 +1509,10 @@ impl BrowserPool {
         // This is critical - without this, keep-alive waits for full ping_interval
         {
             let (lock, cvar) = &**self.inner.shutdown_signal();
-            let mut shutdown = lock.lock().unwrap();
+            let mut shutdown = lock.lock().unwrap_or_else(|poisoned| {
+                log::warn!("Shutdown lock poisoned, recovering");
+                poisoned.into_inner()
+            });
             *shutdown = true;
             cvar.notify_all();
             log::debug!("Shutdown signal sent to keep-alive thread");
@@ -1545,7 +1592,10 @@ impl BrowserPool {
         // Signal condvar (same as async version)
         {
             let (lock, cvar) = &**self.inner.shutdown_signal();
-            let mut shutdown = lock.lock().unwrap();
+            let mut shutdown = lock.lock().unwrap_or_else(|poisoned| {
+                log::warn!("Shutdown lock poisoned, recovering");
+                poisoned.into_inner()
+            });
             *shutdown = true;
             cvar.notify_all();
             log::debug!("Shutdown signal sent");
@@ -1591,11 +1641,11 @@ impl Drop for BrowserPool {
     /// This ensures resources are released even if shutdown wasn't called explicitly.
     /// Uses sync shutdown since Drop can't be async.
     fn drop(&mut self) {
-        log::debug!("� BrowserPool Drop triggered - running cleanup");
+        log::debug!("🛑 BrowserPool Drop triggered - running cleanup");
 
         // Only shutdown if not already done
         if !self.inner.is_shutting_down() {
-            log::warn!("� BrowserPool dropped without explicit shutdown - cleaning up");
+            log::warn!("⚠ BrowserPool dropped without explicit shutdown - cleaning up");
             self.shutdown();
         } else {
             log::debug!(" Pool already shutdown, Drop is no-op");
@@ -1749,14 +1799,14 @@ impl BrowserPoolBuilder {
             BrowserPoolError::Configuration("No browser factory provided".to_string())
         })?;
 
-        log::info!("️ Building browser pool with config: {:?}", config);
+        log::info!("📦 Building browser pool with config: {:?}", config);
 
         // Create inner state
         let inner = BrowserPoolInner::new(config, factory);
 
         // Start keep-alive thread if enabled
         let keep_alive_handle = if self.enable_keep_alive {
-            log::info!(" Starting keep-alive monitoring thread");
+            log::info!("🚀 Starting keep-alive monitoring thread");
             Some(BrowserPool::start_keep_alive(Arc::clone(&inner)))
         } else {
             log::warn!("⚠️ Keep-alive thread disabled (should only be used for testing)");
@@ -1801,7 +1851,7 @@ impl Default for BrowserPoolBuilder {
 ///
 /// # Returns
 ///
-/// `Arc<Mutex<BrowserPool>>` ready for use in web handlers.
+/// `Arc<BrowserPool>` ready for use in web handlers.
 ///
 /// # Errors
 ///
@@ -1823,7 +1873,7 @@ impl Default for BrowserPoolBuilder {
 /// }
 /// ```
 #[cfg(feature = "env-config")]
-pub async fn init_browser_pool() -> Result<Arc<Mutex<BrowserPool>>> {
+pub async fn init_browser_pool() -> Result<Arc<BrowserPool>> {
     use crate::config::env::{chrome_path_from_env, from_env};
     use crate::factory::ChromeBrowserFactory;
 

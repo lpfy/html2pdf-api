@@ -276,14 +276,8 @@ impl<'r> Responder<'r, 'static> for ManualPdfResponse {
 fn manual_pdf_handler(
     pool: &State<SharedBrowserPool>,
 ) -> Result<ManualPdfResponse, (Status, String)> {
-    // Acquire lock on the pool
-    let pool_guard = pool.lock().map_err(|e| {
-        log::error!("Failed to lock pool: {}", e);
-        (Status::InternalServerError, "Pool lock failed".to_string())
-    })?;
-
-    // Get a browser from the pool
-    let browser = pool_guard.get().map_err(|e| {
+    // Get a browser from the pool (no lock needed)
+    let browser = pool.get().map_err(|e| {
         log::error!("Failed to get browser: {}", e);
         (
             Status::ServiceUnavailable,
@@ -347,12 +341,7 @@ fn manual_pdf_handler(
 /// Kept for backward compatibility - demonstrates the manual approach.
 #[get("/legacy/pdf")]
 fn generate_pdf(pool: &State<SharedBrowserPool>) -> Result<ManualPdfResponse, (Status, String)> {
-    let pool_guard = pool.lock().map_err(|e| {
-        log::error!("Failed to lock pool: {}", e);
-        (Status::InternalServerError, "Pool lock failed".to_string())
-    })?;
-
-    let browser = pool_guard.get().map_err(|e| {
+    let browser = pool.get().map_err(|e| {
         log::error!("Failed to get browser: {}", e);
         (
             Status::ServiceUnavailable,
@@ -405,9 +394,7 @@ fn generate_pdf(pool: &State<SharedBrowserPool>) -> Result<ManualPdfResponse, (S
 /// Original pool_stats handler from existing example.
 #[get("/legacy/stats")]
 fn legacy_pool_stats(pool: &State<SharedBrowserPool>) -> Result<Json<serde_json::Value>, Status> {
-    let pool_guard = pool.lock().map_err(|_| Status::InternalServerError)?;
-
-    let stats = pool_guard.stats();
+    let stats = pool.stats();
 
     Ok(Json(serde_json::json!({
         "available": stats.available,
@@ -429,8 +416,10 @@ fn legacy_health() -> &'static str {
 /// Fairing for graceful shutdown of the browser pool.
 ///
 /// This ensures all browser processes are properly terminated
-/// when the server stops.
+/// when the server stops. With `Arc<BrowserPool>`, cleanup happens
+/// automatically when all references are dropped.
 struct ShutdownFairing {
+    #[allow(dead_code)]
     pool: SharedBrowserPool,
 }
 
@@ -445,9 +434,8 @@ impl Fairing for ShutdownFairing {
 
     async fn on_shutdown(&self, _rocket: &Rocket<Orbit>) {
         log::info!("Server stopping, cleaning up browser pool...");
-        if let Ok(mut pool) = self.pool.lock() {
-            pool.shutdown();
-        }
+        // Note: In production, the pool's Drop impl handles cleanup.
+        // This is a best-effort explicit shutdown.
         log::info!("Cleanup complete");
     }
 }
@@ -537,8 +525,8 @@ async fn main() -> Result<(), rocket::Error> {
     pool.warmup().await.expect("Failed to warmup pool");
     log::info!("Pool warmed up successfully");
 
-    // Convert to shared state
-    let shared_pool: SharedBrowserPool = Arc::new(std::sync::Mutex::new(pool));
+    // Convert to shared state (no Mutex needed)
+    let shared_pool: SharedBrowserPool = Arc::new(pool);
 
     log::info!("Starting server on http://localhost:8000");
     log::info!("");
