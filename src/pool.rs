@@ -302,7 +302,10 @@ impl BrowserPoolInner {
                 }
                 // === LOGIC END: Grace Period Check ===
 
-                log::debug!("🔍 Testing browser {} from pool for health...", tracked.id());
+                log::debug!(
+                    "🔍 Testing browser {} from pool for health...",
+                    tracked.id()
+                );
 
                 // Detailed health check WITHOUT holding any locks
                 // This prevents blocking other threads during I/O
@@ -333,10 +336,13 @@ impl BrowserPoolInner {
 
                                         // Get pool size for logging (brief lock)
                                         let pool_size = {
-                                            let available = self.available.lock().unwrap_or_else(|poisoned| {
-                    log::warn!("Pool available lock poisoned, recovering");
-                    poisoned.into_inner()
-                });
+                                            let available =
+                                                self.available.lock().unwrap_or_else(|poisoned| {
+                                                    log::warn!(
+                                                        "Pool available lock poisoned, recovering"
+                                                    );
+                                                    poisoned.into_inner()
+                                                });
                                             available.len()
                                         };
 
@@ -384,9 +390,9 @@ impl BrowserPoolInner {
                 );
                 {
                     let mut active = self.active.lock().unwrap_or_else(|poisoned| {
-                    log::warn!("Pool active lock poisoned, recovering");
-                    poisoned.into_inner()
-                });
+                        log::warn!("Pool active lock poisoned, recovering");
+                        poisoned.into_inner()
+                    });
                     active.remove(&tracked.id());
                     log::debug!("📊 Active browsers after removal: {}", active.len());
                 }
@@ -639,14 +645,22 @@ impl BrowserPoolInner {
         }
 
         // Final status report
-        let pool_size = inner.available.lock().unwrap_or_else(|poisoned| {
-            log::warn!("Pool available lock poisoned, recovering");
-            poisoned.into_inner()
-        }).len();
-        let active_size = inner.active.lock().unwrap_or_else(|poisoned| {
-            log::warn!("Pool active lock poisoned, recovering");
-            poisoned.into_inner()
-        }).len();
+        let pool_size = inner
+            .available
+            .lock()
+            .unwrap_or_else(|poisoned| {
+                log::warn!("Pool available lock poisoned, recovering");
+                poisoned.into_inner()
+            })
+            .len();
+        let active_size = inner
+            .active
+            .lock()
+            .unwrap_or_else(|poisoned| {
+                log::warn!("Pool active lock poisoned, recovering");
+                poisoned.into_inner()
+            })
+            .len();
 
         log::info!(
             "🏁 Replacement creation completed: {}/{} created, {} failed. Pool: {}, Active: {}",
@@ -749,9 +763,9 @@ impl BrowserPoolInner {
     /// Returns a cloned list to avoid holding locks during I/O.
     pub(crate) fn get_active_browsers_snapshot(&self) -> Vec<(u64, TrackedBrowser)> {
         let active = self.active.lock().unwrap_or_else(|poisoned| {
-                    log::warn!("Pool active lock poisoned, recovering");
-                    poisoned.into_inner()
-                });
+            log::warn!("Pool active lock poisoned, recovering");
+            poisoned.into_inner()
+        });
         active
             .iter()
             .map(|(id, tracked)| (*id, tracked.clone()))
@@ -770,9 +784,9 @@ impl BrowserPoolInner {
     /// Remove browsers from the available pool by ID.
     pub(crate) fn remove_from_available(&self, ids: &[u64]) {
         let mut pool = self.available.lock().unwrap_or_else(|poisoned| {
-                    log::warn!("Pool available lock poisoned, recovering");
-                    poisoned.into_inner()
-                });
+            log::warn!("Pool available lock poisoned, recovering");
+            poisoned.into_inner()
+        });
         let original_size = pool.len();
         pool.retain(|b| !ids.contains(&b.id()));
         let removed = original_size - pool.len();
@@ -1250,10 +1264,11 @@ impl BrowserPool {
                         log::warn!("Shutdown lock poisoned, recovering");
                         poisoned.into_inner()
                     });
-                    cvar.wait_timeout(shutdown, ping_interval).unwrap_or_else(|poisoned| {
-                        log::warn!("Condvar wait_timeout lock poisoned, recovering");
-                        poisoned.into_inner()
-                    })
+                    cvar.wait_timeout(shutdown, ping_interval)
+                        .unwrap_or_else(|poisoned| {
+                            log::warn!("Condvar wait_timeout lock poisoned, recovering");
+                            poisoned.into_inner()
+                        })
                 };
 
                 let shutdown_flag = *wait_result.0;

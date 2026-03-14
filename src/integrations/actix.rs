@@ -149,7 +149,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! html2pdf-api = { version = "0.2", features = ["actix-integration"] }
+//! html2pdf-api = { version = "0.3", features = ["actix-integration"] }
 //! actix-web = "4"
 //! ```
 //!

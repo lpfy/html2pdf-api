@@ -141,7 +141,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! html2pdf-api = { version = "0.2", features = ["axum-integration"] }
+//! html2pdf-api = { version = "0.3", features = ["axum-integration"] }
 //! axum = "0.8"
 //! ```
 //!

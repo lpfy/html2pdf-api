@@ -142,7 +142,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! html2pdf-api = { version = "0.2", features = ["rocket-integration"] }
+//! html2pdf-api = { version = "0.3", features = ["rocket-integration"] }
 //! rocket = { version = "0.5", features = ["json"] }
 //! ```
 //!
