@@ -111,13 +111,13 @@ pub(crate) struct BrowserPoolInner {
     ///
     /// Protected by Mutex. Browsers are moved from here when checked out
     /// and returned here when released (if pool not full).
-    available: Mutex<Vec<TrackedBrowser>>,
+    available: Mutex<Vec<Arc<TrackedBrowser>>>,
 
     /// All browsers that exist (both pooled and checked out).
     ///
     /// Protected by Mutex. Used for health monitoring and lifecycle tracking.
     /// Maps browser ID -> TrackedBrowser for fast lookup.
-    active: Mutex<HashMap<u64, TrackedBrowser>>,
+    active: Mutex<HashMap<u64, Arc<TrackedBrowser>>>,
 
     /// Factory for creating new browser instances.
     factory: Box<dyn BrowserFactory>,
@@ -183,6 +183,25 @@ impl BrowserPoolInner {
         })
     }
 
+    /// Create a lightweight mock pool for testing without background threads.
+    #[cfg(test)]
+    pub(crate) fn new_for_test(
+        config: BrowserPoolConfig,
+        factory: Box<dyn BrowserFactory>,
+        runtime_handle: tokio::runtime::Handle,
+    ) -> Self {
+        Self {
+            config,
+            available: Mutex::new(Vec::new()),
+            active: Mutex::new(HashMap::new()),
+            factory,
+            shutting_down: AtomicBool::new(false),
+            replacement_tasks: Mutex::new(Vec::new()),
+            runtime_handle,
+            shutdown_signal: Arc::new((Mutex::new(false), Condvar::new())),
+        }
+    }
+
     /// Create a browser directly without using the pool.
     ///
     /// Used for:
@@ -198,7 +217,7 @@ impl BrowserPoolInner {
     ///
     /// - Returns [`BrowserPoolError::ShuttingDown`] if pool is shutting down.
     /// - Returns [`BrowserPoolError::BrowserCreation`] if factory fails.
-    pub(crate) fn create_browser_direct(&self) -> Result<TrackedBrowser> {
+    pub(crate) fn create_browser_direct(&self) -> Result<Arc<TrackedBrowser>> {
         // Early exit if shutting down (don't waste time creating browsers)
         if self.shutting_down.load(Ordering::Acquire) {
             log::debug!("🛑 Skipping browser creation - pool is shutting down");
@@ -210,14 +229,14 @@ impl BrowserPoolInner {
         // Factory handles all Chrome launch complexity
         let browser = self.factory.create()?;
 
-        // Wrap with tracking metadata
-        let tracked = TrackedBrowser::new(browser)?;
+        // Wrap with tracking metadata and Arc immediately
+        let tracked = Arc::new(TrackedBrowser::new(browser)?);
         let id = tracked.id();
 
         // Add to active tracking immediately for health monitoring
         // This ensures keep-alive thread will monitor it
         if let Ok(mut active) = self.active.lock() {
-            active.insert(id, tracked.clone());
+            active.insert(id, Arc::clone(&tracked));
             log::debug!(
                 "📊 Browser {} added to active tracking (total active: {})",
                 id,
@@ -434,7 +453,7 @@ impl BrowserPoolInner {
     ///
     /// * `self_arc` - Arc reference to self (needed for spawning async tasks).
     /// * `tracked` - The browser being returned.
-    pub(crate) fn return_browser(self_arc: &Arc<Self>, tracked: TrackedBrowser) {
+    pub(crate) fn return_browser(self_arc: &Arc<Self>, tracked: Arc<TrackedBrowser>) {
         log::debug!("♻️ Returning browser {} to pool...", tracked.id());
 
         // Early exit if shutting down (don't waste time managing pool)
@@ -761,19 +780,19 @@ impl BrowserPoolInner {
     /// Get a snapshot of active browsers for health checking.
     ///
     /// Returns a cloned list to avoid holding locks during I/O.
-    pub(crate) fn get_active_browsers_snapshot(&self) -> Vec<(u64, TrackedBrowser)> {
+    pub(crate) fn get_active_browsers_snapshot(&self) -> Vec<(u64, Arc<TrackedBrowser>)> {
         let active = self.active.lock().unwrap_or_else(|poisoned| {
             log::warn!("Pool active lock poisoned, recovering");
             poisoned.into_inner()
         });
         active
             .iter()
-            .map(|(id, tracked)| (*id, tracked.clone()))
+            .map(|(id, tracked)| (*id, Arc::clone(tracked)))
             .collect()
     }
 
     /// Remove a browser from active tracking.
-    pub(crate) fn remove_from_active(&self, id: u64) -> Option<TrackedBrowser> {
+    pub(crate) fn remove_from_active(&self, id: u64) -> Option<Arc<TrackedBrowser>> {
         let mut active = self.active.lock().unwrap_or_else(|poisoned| {
             log::warn!("Pool active lock poisoned, recovering");
             poisoned.into_inner()
@@ -1202,8 +1221,9 @@ impl BrowserPool {
         log::debug!("🔍 Returning {} warmup browsers to pool...", handles.len());
         drop(handles);
 
-        // Small delay to ensure Drop handlers complete
-        tokio::time::sleep(Duration::from_millis(300)).await;
+        // No delay needed: return_browser() is synchronous in the happy path,
+        // and warmup browsers are never TTL-expired (which is the only path
+        // that spawns async work via spawn_replacement_creation).
 
         let final_stats = self.stats();
         log::info!(

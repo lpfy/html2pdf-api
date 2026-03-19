@@ -111,7 +111,7 @@ pub struct BrowserHandle {
     ///
     /// This is `Option` so we can `take()` it in the `Drop` implementation
     /// without requiring `&mut self` to be valid after drop.
-    tracked: Option<TrackedBrowser>,
+    tracked: Option<Arc<TrackedBrowser>>,
 
     /// Reference to pool for returning browser.
     ///
@@ -130,7 +130,7 @@ impl BrowserHandle {
     ///
     /// * `tracked` - The tracked browser instance.
     /// * `pool` - Arc reference to the pool's inner state.
-    pub(crate) fn new(tracked: TrackedBrowser, pool: Arc<BrowserPoolInner>) -> Self {
+    pub(crate) fn new(tracked: Arc<TrackedBrowser>, pool: Arc<BrowserPoolInner>) -> Self {
         Self {
             tracked: Some(tracked),
             pool,
@@ -258,20 +258,48 @@ impl std::fmt::Debug for BrowserHandle {
 
 #[cfg(test)]
 mod tests {
-    //use super::*;
+    use super::*;
+    use crate::config::BrowserPoolConfig;
+    use crate::factory::mock::MockBrowserFactory;
+    use crate::pool::BrowserPoolInner;
 
-    /// Verifies that BrowserHandle exposes browser ID.
-    #[test]
-    fn test_handle_id_returns_zero_when_empty() {
-        // We can't easily test with a real TrackedBrowser without Chrome,
-        // but we can verify the method exists and handles edge cases.
-        // In real usage, tracked is always Some until drop.
+    fn create_test_pool_inner() -> Arc<BrowserPoolInner> {
+        Arc::new(BrowserPoolInner::new_for_test(
+            BrowserPoolConfig::default(),
+            Box::new(MockBrowserFactory::always_fails("test")),
+            tokio::runtime::Handle::current(),
+        ))
     }
 
-    /// Verifies Debug implementation.
+    /// Verifies that BrowserHandle methods return graceful fallbacks when empty (post-drop).
+    #[tokio::test]
+    async fn test_handle_id_returns_zero_when_tracked_is_none() {
+        let handle = BrowserHandle {
+            tracked: None,
+            pool: create_test_pool_inner(),
+        };
+        assert_eq!(handle.id(), 0);
+        assert_eq!(handle.age_minutes(), 0);
+        assert_eq!(handle.age(), std::time::Duration::default());
+    }
+
+    /// Verifies that Debug is formatted safely for a returned handle.
+    #[tokio::test]
+    async fn test_handle_debug_when_returned() {
+        let handle = BrowserHandle {
+            tracked: None,
+            pool: create_test_pool_inner(),
+        };
+        let debug_output = format!("{:?}", handle);
+        assert!(debug_output.contains("returned"));
+        assert!(!debug_output.contains("age_minutes"));
+    }
+
+    /// Verifies Debug incorporates age if active, although requires real chrome dependencies to fully run locally.
     #[test]
-    fn test_handle_debug_when_returned() {
-        // After drop, the handle shows "returned" state
-        // This is tested implicitly through the Debug impl
+    #[ignore = "Requires launching a real Chrome process for TrackedBrowser initialization"]
+    fn test_handle_debug_when_active() {
+        // Assertions verifying that `Debug` includes `age_minutes`
+        // when `tracked: Some(...)` would live here.
     }
 }

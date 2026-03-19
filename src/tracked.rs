@@ -64,7 +64,6 @@ use crate::traits::Healthcheck;
 ///       │
 ///       └──→ TTL Expired ──→ Retired & Replaced
 /// ```
-#[derive(Clone)]
 pub(crate) struct TrackedBrowser {
     /// Globally unique identifier for this browser instance.
     ///

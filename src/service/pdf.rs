@@ -825,6 +825,14 @@ fn validate_url(url: &str) -> Result<String, PdfServiceError> {
     // Parse and normalize the URL
     match url::Url::parse(url) {
         Ok(parsed) => {
+            let scheme = parsed.scheme();
+            if scheme != "http" && scheme != "https" && scheme != "data" {
+                log::debug!("URL validation failed: unsupported scheme '{}'", scheme);
+                return Err(PdfServiceError::InvalidUrl(format!(
+                    "Unsupported URL scheme '{}'. Only http, https, and data are allowed",
+                    scheme
+                )));
+            }
             log::trace!("URL validated successfully: {}", parsed);
             Ok(parsed.to_string())
         }
@@ -1343,6 +1351,12 @@ mod tests {
     fn test_validate_url_data_url() {
         let result = validate_url("data:text/html,<h1>Hello</h1>");
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_file_url() {
+        let result = validate_url("file:///etc/passwd");
+        assert!(matches!(result, Err(PdfServiceError::InvalidUrl(_))));
     }
 
     // -------------------------------------------------------------------------

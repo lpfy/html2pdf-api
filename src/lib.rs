@@ -223,7 +223,6 @@
 //!     .build()?;
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/html2pdf-api/0.1.0")]
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
 
