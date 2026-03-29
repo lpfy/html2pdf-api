@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-03-29
+
+### Added
+- **Industry-Standard Print Profiling**: Exhaustively mapped all `headless_chrome` (CDP) `PrintToPdfOptions` (scale, margins, header/footer templates, page ranges) to API request structures for full programmatic control over PDFs.
+- **Precision SSRF Defense**: Added an `offline_mode` toggle to `PdfFromHtmlRequest` that injects native `Network.emulateNetworkConditions` CDP instructions, neutralizing EXFIL vulnerabilities while keeping embedded JS/CSS engines running at full speed.
+- **Fleet Ergonomics**: Exposed `warmup_stagger` in `BrowserPoolConfig` to prevent concurrent timeout collisions during large-scale pool initializations.
+
+### Changed
+- **O(1) Checkouts**: Ripped out blocking network I/O sanity checks from `get_or_create_browser()`, cutting checkout latency to ~0ms. Active browser health checks are now entirely delegated to async background threads.
+
+### Fixed
+- **Poison Pill Elimination:** Introduced an `AtomicBool` health marker system and `mark_unhealthy` eviction hook. Crashed Chrome instances are now permanently removed from the system instead of being recycled back into active pool circulation on drop.
+
 ## [0.3.2] - 2026-03-20
 
 ### Added

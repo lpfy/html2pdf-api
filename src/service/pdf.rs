@@ -371,13 +371,30 @@ pub fn generate_pdf_from_url(
     // Acquire browser from pool (lock held briefly)
     let browser = acquire_browser(pool)?;
 
+    let print_options = build_print_options(
+        request.landscape,
+        request.display_header_footer,
+        request.print_background,
+        request.scale,
+        request.paper_width,
+        request.paper_height,
+        request.margin_top,
+        request.margin_bottom,
+        request.margin_left,
+        request.margin_right,
+        request.page_ranges.clone(),
+        request.header_template.clone(),
+        request.footer_template.clone(),
+        request.prefer_css_page_size,
+    );
+
     // Generate PDF (lock released, browser returned via RAII on completion/error)
     let pdf_data = generate_pdf_internal(
         &browser,
         &url,
         request.wait_duration(),
-        request.is_landscape(),
-        request.print_background(),
+        print_options,
+        false, // offline_mode is disabled for URLs
     )?;
 
     log::info!(
@@ -592,13 +609,30 @@ pub fn generate_pdf_from_html(
 
     log::trace!("Data URL length: {} bytes", data_url.len());
 
+    let print_options = build_print_options(
+        request.landscape,
+        request.display_header_footer,
+        request.print_background,
+        request.scale,
+        request.paper_width,
+        request.paper_height,
+        request.margin_top,
+        request.margin_bottom,
+        request.margin_left,
+        request.margin_right,
+        request.page_ranges.clone(),
+        request.header_template.clone(),
+        request.footer_template.clone(),
+        request.prefer_css_page_size,
+    );
+
     // Generate PDF
     let pdf_data = generate_pdf_internal(
         &browser,
         &data_url,
         request.wait_duration(),
-        request.is_landscape(),
-        request.print_background(),
+        print_options,
+        request.offline_mode.unwrap_or(false),
     )?;
 
     log::info!(
@@ -927,8 +961,8 @@ fn generate_pdf_internal(
     browser: &BrowserHandle,
     url: &str,
     wait_duration: Duration,
-    landscape: bool,
-    print_background: bool,
+    print_options: Option<PrintToPdfOptions>,
+    offline_mode: bool,
 ) -> Result<Vec<u8>, PdfServiceError> {
     let start_time = Instant::now();
 
@@ -936,11 +970,27 @@ fn generate_pdf_internal(
     log::trace!("Creating new browser tab");
     let tab = browser.new_tab().map_err(|e| {
         log::error!("❌ Failed to create tab: {}", e);
+        browser.mark_unhealthy(); // Poison pill prevention
         PdfServiceError::TabCreationFailed(e.to_string())
     })?;
 
-    // Configure PDF options
-    let print_options = build_print_options(landscape, print_background);
+    if offline_mode {
+        log::info!("🛡️ Enabling CDP Offline Mode (SSRF Defense)");
+        let _ = tab
+            .call_method(
+                headless_chrome::protocol::cdp::Network::EmulateNetworkConditions {
+                    offline: true,
+                    latency: 0.0,
+                    download_throughput: 0.0,
+                    upload_throughput: 0.0,
+                    connection_Type: None,
+                    packet_loss: None,
+                    packet_queue_length: None,
+                    packet_reordering: None,
+                },
+            )
+            .map_err(|e| log::warn!("Failed to apply offline mode: {}", e));
+    }
 
     // Navigate to URL
     log::trace!("Navigating to URL: {}", truncate_url(url, 100));
@@ -950,11 +1000,13 @@ fn generate_pdf_internal(
         .navigate_to(url)
         .map_err(|e| {
             log::error!("❌ Failed to navigate to URL: {}", e);
+            browser.mark_unhealthy();
             PdfServiceError::NavigationFailed(e.to_string())
         })?
         .wait_until_navigated()
         .map_err(|e| {
             log::error!("❌ Navigation timeout: {}", e);
+            browser.mark_unhealthy();
             PdfServiceError::NavigationTimeout(e.to_string())
         })?;
 
@@ -997,17 +1049,38 @@ fn generate_pdf_internal(
 /// - **Header/Footer**: Disabled
 /// - **Background**: Configurable (default: true)
 /// - **Scale**: 1.0 (100%)
-fn build_print_options(landscape: bool, print_background: bool) -> Option<PrintToPdfOptions> {
+#[allow(clippy::too_many_arguments)]
+fn build_print_options(
+    landscape: Option<bool>,
+    display_header_footer: Option<bool>,
+    print_background: Option<bool>,
+    scale: Option<f64>,
+    paper_width: Option<f64>,
+    paper_height: Option<f64>,
+    margin_top: Option<f64>,
+    margin_bottom: Option<f64>,
+    margin_left: Option<f64>,
+    margin_right: Option<f64>,
+    page_ranges: Option<String>,
+    header_template: Option<String>,
+    footer_template: Option<String>,
+    prefer_css_page_size: Option<bool>,
+) -> Option<PrintToPdfOptions> {
     Some(PrintToPdfOptions {
-        landscape: Some(landscape),
-        display_header_footer: Some(false),
-        print_background: Some(print_background),
-        // Zero margins for full-page output
-        margin_top: Some(0.0),
-        margin_bottom: Some(0.0),
-        margin_left: Some(0.0),
-        margin_right: Some(0.0),
-        // Use defaults for everything else
+        landscape,
+        display_header_footer,
+        print_background,
+        scale,
+        paper_width,
+        paper_height,
+        margin_top,
+        margin_bottom,
+        margin_left,
+        margin_right,
+        page_ranges,
+        header_template,
+        footer_template,
+        prefer_css_page_size,
         ..Default::default()
     })
 }
@@ -1384,32 +1457,32 @@ mod tests {
     }
 
     #[test]
-    fn test_build_print_options_landscape() {
-        let options = build_print_options(true, true).unwrap();
+    fn test_build_print_options_mapping() {
+        let options = build_print_options(
+            Some(true),              // landscape
+            Some(false),             // display_header_footer
+            Some(false),             // print_background
+            Some(1.5),               // scale
+            Some(8.5),               // paper_width
+            Some(11.0),              // paper_height
+            Some(0.5),               // margin_top
+            Some(0.5),               // margin_bottom
+            Some(0.5),               // margin_left
+            Some(0.5),               // margin_right
+            Some("1-5".to_string()), // page_ranges
+            None,                    // header_template
+            None,                    // footer_template
+            Some(true),              // prefer_css_page_size
+        )
+        .unwrap();
+
         assert_eq!(options.landscape, Some(true));
-        assert_eq!(options.print_background, Some(true));
-    }
-
-    #[test]
-    fn test_build_print_options_portrait() {
-        let options = build_print_options(false, false).unwrap();
-        assert_eq!(options.landscape, Some(false));
-        assert_eq!(options.print_background, Some(false));
-    }
-
-    #[test]
-    fn test_build_print_options_zero_margins() {
-        let options = build_print_options(false, true).unwrap();
-        assert_eq!(options.margin_top, Some(0.0));
-        assert_eq!(options.margin_bottom, Some(0.0));
-        assert_eq!(options.margin_left, Some(0.0));
-        assert_eq!(options.margin_right, Some(0.0));
-    }
-
-    #[test]
-    fn test_build_print_options_no_header_footer() {
-        let options = build_print_options(false, true).unwrap();
         assert_eq!(options.display_header_footer, Some(false));
+        assert_eq!(options.print_background, Some(false));
+        assert_eq!(options.scale, Some(1.5));
+        assert_eq!(options.margin_top, Some(0.5));
+        assert_eq!(options.page_ranges, Some("1-5".to_string()));
+        assert_eq!(options.prefer_css_page_size, Some(true));
     }
 
     // -------------------------------------------------------------------------

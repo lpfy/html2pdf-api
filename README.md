@@ -451,11 +451,23 @@ When using `configure_routes` (Actix/Rocket/Axum), these endpoints are available
 | `landscape` | bool | No | false | Landscape orientation |
 | `download` | bool | No | false | Force download vs inline display |
 | `print_background` | bool | No | true | Include background graphics |
+| **`scale`** | f64 | No | 1.0 | Scale of the webpage rendering |
+| **`paper_width`** | f64 | No | 8.5 | Paper width in inches |
+| **`paper_height`** | f64 | No | 11.0 | Paper height in inches |
+| **`margin_top`** | f64 | No | 0.4 | Top margin in inches |
+| **`margin_bottom`** | f64 | No | 0.4 | Bottom margin in inches |
+| **`margin_left`** | f64 | No | 0.4 | Left margin in inches |
+| **`margin_right`** | f64 | No | 0.4 | Right margin in inches |
+| **`page_ranges`** | string | No | - | e.g. "1-5, 8, 11-13" |
+| **`display_header_footer`**| bool | No | false | Enable custom headers/footers |
+| **`header_template`**| string | No | - | HTML template for header |
+| **`footer_template`**| string | No | - | HTML template for footer |
+| **`prefer_css_page_size`** | bool | No | false | Prefer page size defined by CSS |
 
 **Example:**
 
 ```bash
-curl "http://localhost:8080/pdf?url=https://example.com&filename=report.pdf&landscape=true" \
+curl "http://localhost:8080/pdf?url=https://example.com&filename=report.pdf&landscape=true&paper_width=8.27&paper_height=11.69" \
   --output report.pdf
 ```
 
@@ -470,17 +482,37 @@ curl "http://localhost:8080/pdf?url=https://example.com&filename=report.pdf&land
     "waitsecs": 2,
     "landscape": false,
     "download": false,
-    "print_background": true
+    "print_background": true,
+    "offline_mode": true
 }
 ```
+
+*Note: The `offline_mode` property neutralizes JS-based SSRF/Data-Exfiltration attempts during untrusted HTML rendering by strictly air-gapping the execution tab using Chrome Native CDP `Network.emulateNetworkConditions`. All print-profiling arguments (margins, templates, scale) listed in the GET endpoint are strictly supported here as well.*
 
 **Example:**
 
 ```bash
 curl -X POST http://localhost:8080/pdf/html \
   -H "Content-Type: application/json" \
-  -d '{"html": "<h1>Hello</h1>", "filename": "hello.pdf"}' \
+  -d '{"html": "<h1>Hello</h1>", "offline_mode": true, "display_header_footer": true, "header_template": "<span class=\"title\"></span>"}' \
   --output hello.pdf
+```
+
+### GET /advanced/pdf - Enterprise Print Profiling Showcase (Examples Only)
+
+The `examples/` directory inside this repository exposes an additional `GET /advanced/pdf` route demonstrating how to dynamically construct a PDF payload utilizing the massive array of print layout parameters.
+
+**Example: Margins, Headers, Scale & Offline Mode (SSRF Defense)**
+
+```bash
+curl -G "http://localhost:8080/advanced/pdf" \
+  -d "margin_top=1.2" \
+  -d "margin_bottom=1.2" \
+  -d "paper_width=8.27" \
+  -d "paper_height=11.69" \
+  -d "offline_mode=true" \
+  -d "print_background=true" \
+  --output secure_report_styled.pdf
 ```
 
 ### GET /pool/stats - Pool Statistics

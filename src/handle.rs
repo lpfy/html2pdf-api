@@ -186,6 +186,17 @@ impl BrowserHandle {
     pub fn age_minutes(&self) -> u64 {
         self.tracked.as_ref().map(|t| t.age_minutes()).unwrap_or(0)
     }
+
+    /// Mark this browser instance as permanently unhealthy.
+    ///
+    /// This should be called if a critical internal Chrome operation fails.
+    /// Unhealthy browsers will be evicted from the pool and replaced
+    /// when this handle is dropped.
+    pub fn mark_unhealthy(&self) {
+        if let Some(tracked) = &self.tracked {
+            tracked.mark_unhealthy();
+        }
+    }
 }
 
 impl std::ops::Deref for BrowserHandle {

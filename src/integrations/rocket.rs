@@ -327,6 +327,18 @@ impl From<PdfFromUrlQuery> for PdfFromUrlRequest {
             landscape: query.landscape,
             download: query.download,
             print_background: query.print_background,
+            scale: None,
+            paper_width: None,
+            paper_height: None,
+            prefer_css_page_size: None,
+            margin_top: None,
+            margin_bottom: None,
+            margin_left: None,
+            margin_right: None,
+            display_header_footer: None,
+            header_template: None,
+            footer_template: None,
+            page_ranges: None,
         }
     }
 }

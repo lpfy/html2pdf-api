@@ -58,7 +58,9 @@ use axum::{
     routing::get,
 };
 use html2pdf_api::integrations::axum::configure_routes;
-use html2pdf_api::service::{PdfFromUrlRequest, generate_pdf_from_url};
+use html2pdf_api::service::{
+    PdfFromHtmlRequest, PdfFromUrlRequest, generate_pdf_from_html, generate_pdf_from_url,
+};
 use html2pdf_api::{
     BrowserPool, BrowserPoolConfigBuilder, ChromeBrowserFactory, SharedBrowserPool,
 };
@@ -239,6 +241,115 @@ async fn manual_pdf_handler(
 }
 
 // ============================================================================
+// Advanced Handler Example: Print Profiling & Security
+// ============================================================================
+
+#[derive(serde::Deserialize)]
+pub struct AdvancedPdfQuery {
+    pub filename: Option<String>,
+    pub landscape: Option<bool>,
+    pub print_background: Option<bool>,
+    pub waitsecs: Option<u64>,
+    pub scale: Option<f64>,
+    pub paper_width: Option<f64>,
+    pub paper_height: Option<f64>,
+    pub margin_top: Option<f64>,
+    pub margin_bottom: Option<f64>,
+    pub margin_left: Option<f64>,
+    pub margin_right: Option<f64>,
+    pub page_ranges: Option<String>,
+    pub display_header_footer: Option<bool>,
+    pub header_template: Option<String>,
+    pub footer_template: Option<String>,
+    pub prefer_css_page_size: Option<bool>,
+    pub offline_mode: Option<bool>,
+}
+
+/// Advanced handler demonstrating enterprise print features.
+async fn advanced_pdf_handler(
+    State(pool): State<SharedBrowserPool>,
+    Query(query): Query<AdvancedPdfQuery>,
+) -> Result<impl IntoResponse, StatusCode> {
+    log::info!("Advanced handler called: Generating secure enterprise report");
+
+    let untrusted_html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: sans-serif; padding: 20px; }
+                h1 { color: #2c3e50; }
+                .confidential { color: #e74c3c; border: 1px solid #e74c3c; padding: 10px; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <h1>Quarterly Earnings Report</h1>
+            <p>This report was generated securely via the Advanced Profiling API.</p>
+            <div class="confidential">
+                <strong>CONFIDENTIAL DATA</strong>
+                <p>DO NOT DISTRIBUTE.</p>
+            </div>
+            <!-- This fetch will instantly fail because offline_mode is true -->
+            <script>
+                fetch('http://169.254.169.254/latest/meta-data/')
+                    .then(r => console.log('Stolen metadata!', r))
+                    .catch(e => console.error('Extraction prevented!', e));
+            </script>
+        </body>
+        </html>
+    "#.to_string();
+
+    let request = PdfFromHtmlRequest {
+        html: untrusted_html,
+        filename: query.filename.clone().or(Some("secure_report.pdf".to_string())),
+        paper_width: query.paper_width.or(Some(8.27)),
+        paper_height: query.paper_height.or(Some(11.69)),
+        margin_top: query.margin_top.or(Some(1.2)),
+        margin_bottom: query.margin_bottom.or(Some(1.2)),
+        margin_left: query.margin_left.or(Some(0.8)),
+        margin_right: query.margin_right.or(Some(0.8)),
+        display_header_footer: query.display_header_footer.or(Some(true)),
+        header_template: query.header_template.clone().or_else(|| {
+            Some(r#"<div style="font-size: 10px; color: #7f8c8d; text-align: right; width: 100%; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin: 0 40px;">Internal Organization Document | CONFIDENTIAL</div>"#.to_string())
+        }),
+        footer_template: query.footer_template.clone().or_else(|| {
+            Some(r#"<div style="font-size: 10px; color: #7f8c8d; text-align: center; width: 100%;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>"#.to_string())
+        }),
+        offline_mode: query.offline_mode.or(Some(true)),
+        waitsecs: query.waitsecs.or(Some(1)),
+        landscape: query.landscape,
+        print_background: query.print_background,
+        scale: query.scale,
+        page_ranges: query.page_ranges.clone(),
+        prefer_css_page_size: query.prefer_css_page_size,
+        ..Default::default()
+    };
+
+    let result = tokio::task::spawn_blocking(move || generate_pdf_from_html(&pool, &request)).await;
+
+    match result {
+        Ok(Ok(pdf_response)) => Ok((
+            [
+                (header::CONTENT_TYPE, "application/pdf".to_string()),
+                (
+                    header::CONTENT_DISPOSITION,
+                    pdf_response.content_disposition(),
+                ),
+            ],
+            pdf_response.data,
+        )),
+        Ok(Err(service_error)) => {
+            log::error!("Service error: {}", service_error);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Err(e) => {
+            log::error!("Blocking error: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// ============================================================================
 // Legacy Handlers (Backward Compatibility)
 // ============================================================================
 
@@ -396,6 +507,7 @@ async fn main() {
     log::info!("  Custom handlers:");
     log::info!("    GET  http://localhost:3000/custom/pdf?url=https://example.com");
     log::info!("    GET  http://localhost:3000/manual/pdf");
+    log::info!("    GET  http://localhost:3000/advanced/pdf");
     log::info!("");
     log::info!("  Legacy handlers (backward compatibility):");
     log::info!("    GET  http://localhost:3000/legacy/pdf");
@@ -414,6 +526,10 @@ async fn main() {
         // Option 2: Custom handlers using service functions
         // -----------------------------------------------------------------
         .route("/custom/pdf", get(custom_pdf_handler))
+        // -----------------------------------------------------------------
+        // Option 4: Enterprise profiling showcase
+        // -----------------------------------------------------------------
+        .route("/advanced/pdf", get(advanced_pdf_handler))
         // -----------------------------------------------------------------
         // Option 3: Manual browser control
         // -----------------------------------------------------------------

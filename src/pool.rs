@@ -321,103 +321,23 @@ impl BrowserPoolInner {
                 }
                 // === LOGIC END: Grace Period Check ===
 
-                log::debug!(
-                    "🔍 Testing browser {} from pool for health...",
-                    tracked.id()
-                );
-
-                // Detailed health check WITHOUT holding any locks
-                // This prevents blocking other threads during I/O
-                match tracked.browser().new_tab() {
-                    Ok(tab) => {
-                        log::trace!(
-                            "✅ Browser {} health check: new_tab() successful",
-                            tracked.id()
-                        );
-
-                        // Test navigation capability (full health check)
-                        match tab
-                            .navigate_to("data:text/html,<html><body>Health check</body></html>")
-                        {
-                            Ok(_) => {
-                                log::trace!(
-                                    "✅ Browser {} health check: navigation successful",
-                                    tracked.id()
-                                );
-
-                                // Test cleanup capability
-                                match tab.close(true) {
-                                    Ok(_) => {
-                                        log::debug!(
-                                            "✅ Browser {} passed full health check - ready for use",
-                                            tracked.id()
-                                        );
-
-                                        // Get pool size for logging (brief lock)
-                                        let pool_size = {
-                                            let available =
-                                                self.available.lock().unwrap_or_else(|poisoned| {
-                                                    log::warn!(
-                                                        "Pool available lock poisoned, recovering"
-                                                    );
-                                                    poisoned.into_inner()
-                                                });
-                                            available.len()
-                                        };
-
-                                        log::info!(
-                                            "♻️ Reusing healthy browser {} from pool (pool size: {})",
-                                            tracked.id(),
-                                            pool_size
-                                        );
-
-                                        // Return healthy browser wrapped in RAII handle
-                                        return Ok(BrowserHandle::new(tracked, Arc::clone(self)));
-                                    }
-                                    Err(e) => {
-                                        log::warn!(
-                                            "❌ Browser {} health check: tab close failed: {}",
-                                            tracked.id(),
-                                            e
-                                        );
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                log::warn!(
-                                    "❌ Browser {} health check: navigation failed: {}",
-                                    tracked.id(),
-                                    e
-                                );
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        log::warn!(
-                            "❌ Browser {} health check: new_tab() failed: {}",
-                            tracked.id(),
-                            e
-                        );
-                    }
-                }
-
-                // If we reach here, health check failed
-                // Remove from active tracking (browser is dead)
-                log::warn!(
-                    "🗑️ Removing unhealthy browser {} from active tracking",
-                    tracked.id()
-                );
-                {
-                    let mut active = self.active.lock().unwrap_or_else(|poisoned| {
-                        log::warn!("Pool active lock poisoned, recovering");
+                // Get pool size for logging (brief lock)
+                let pool_size = {
+                    let available = self.available.lock().unwrap_or_else(|poisoned| {
+                        log::warn!("Pool available lock poisoned, recovering");
                         poisoned.into_inner()
                     });
-                    active.remove(&tracked.id());
-                    log::debug!("📊 Active browsers after removal: {}", active.len());
-                }
+                    available.len()
+                };
 
-                // Continue loop to try next browser in pool
-                log::debug!("🔍 Trying next browser from pool...");
+                log::info!(
+                    "♻️ Reusing healthy browser {} from pool (pool size: {})",
+                    tracked.id(),
+                    pool_size
+                );
+
+                // Return healthy browser wrapped in RAII handle
+                return Ok(BrowserHandle::new(tracked, Arc::clone(self)));
             } else {
                 // Pool is empty, break to create new browser
                 log::debug!("📥 Pool is empty, will create new browser");
@@ -508,6 +428,31 @@ impl BrowserPoolInner {
 
             // Trigger async replacement creation (non-blocking)
             log::debug!("🔍 Triggering replacement browser creation for expired browser");
+            Self::spawn_replacement_creation(Arc::clone(self_arc), 1);
+            return;
+        }
+
+        // Check health marker before returning to pool
+        // Crashed browsers must be retired to prevent poison pill loops
+        if !tracked.is_healthy() {
+            log::warn!(
+                "⚕️ Browser {} marked unhealthy, retiring instead of returning",
+                tracked.id()
+            );
+
+            // Remove from active tracking
+            active.remove(&tracked.id());
+            log::debug!(
+                "📊 Active browsers after health retirement: {}",
+                active.len()
+            );
+
+            // Release locks before spawning replacement task
+            drop(active);
+            drop(pool);
+
+            // Trigger async replacement creation (non-blocking)
+            log::debug!("🔍 Triggering replacement browser creation for unhealthy browser");
             Self::spawn_replacement_creation(Arc::clone(self_arc), 1);
             return;
         }
@@ -1101,7 +1046,7 @@ impl BrowserPool {
 
         // STAGGER CONFIGURATION
         // We wait this long between creations to distribute expiration times
-        let stagger_interval = Duration::from_secs(30);
+        let stagger_interval = self.config().warmup_stagger;
 
         let mut handles = Vec::new();
         let mut created_count = 0;

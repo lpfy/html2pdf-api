@@ -24,6 +24,7 @@
 //! ## Custom Examples
 //! - `GET  /custom/pdf?url=...` - Custom handler using service function
 //! - `GET  /manual/pdf` - Manual browser control (original approach)
+//! - `GET  /advanced/pdf` - Enterprise print profiling and SSRF defense showcase
 //!
 //! # Testing
 //!
@@ -71,7 +72,9 @@ use html2pdf_api::config::BrowserPoolConfigBuilder;
 use html2pdf_api::factory::ChromeBrowserFactory;
 use html2pdf_api::integrations::rocket::SharedPool;
 use html2pdf_api::pool::BrowserPool;
-use html2pdf_api::service::{PdfFromUrlRequest, generate_pdf_from_url};
+use html2pdf_api::service::{
+    PdfFromHtmlRequest, PdfFromUrlRequest, generate_pdf_from_html, generate_pdf_from_url,
+};
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -333,6 +336,108 @@ fn manual_pdf_handler(
 }
 
 // ============================================================================
+// Advanced Handler Example: Print Profiling & Security
+// ============================================================================
+
+#[derive(rocket::form::FromForm)]
+pub struct AdvancedPdfQuery<'r> {
+    pub filename: Option<&'r str>,
+    pub landscape: Option<bool>,
+    pub print_background: Option<bool>,
+    pub waitsecs: Option<u64>,
+    pub scale: Option<f64>,
+    pub paper_width: Option<f64>,
+    pub paper_height: Option<f64>,
+    pub margin_top: Option<f64>,
+    pub margin_bottom: Option<f64>,
+    pub margin_left: Option<f64>,
+    pub margin_right: Option<f64>,
+    pub page_ranges: Option<&'r str>,
+    pub display_header_footer: Option<bool>,
+    pub header_template: Option<&'r str>,
+    pub footer_template: Option<&'r str>,
+    pub prefer_css_page_size: Option<bool>,
+    pub offline_mode: Option<bool>,
+}
+
+/// Advanced handler demonstrating enterprise print features.
+#[rocket::get("/advanced/pdf?<query..>")]
+fn advanced_pdf_handler(
+    pool: &State<SharedBrowserPool>,
+    query: AdvancedPdfQuery<'_>,
+) -> Result<CustomPdfResponse, CustomErrorResponse> {
+    log::info!("Advanced handler called: Generating secure enterprise report");
+
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let untrusted_html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: sans-serif; padding: 20px; }
+                h1 { color: #2c3e50; }
+                .confidential { color: #e74c3c; border: 1px solid #e74c3c; padding: 10px; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <h1>Quarterly Earnings Report</h1>
+            <p>This report was generated securely via the Advanced Profiling API.</p>
+            <div class="confidential">
+                <strong>CONFIDENTIAL DATA</strong>
+                <p>DO NOT DISTRIBUTE.</p>
+            </div>
+        </body>
+        </html>
+    "#.to_string();
+
+    let request = PdfFromHtmlRequest {
+        html: untrusted_html,
+        filename: query.filename.map(|s| s.to_string()).or(Some("secure_report.pdf".to_string())),
+        paper_width: query.paper_width.or(Some(8.27)),
+        paper_height: query.paper_height.or(Some(11.69)),
+        margin_top: query.margin_top.or(Some(1.2)),
+        margin_bottom: query.margin_bottom.or(Some(1.2)),
+        margin_left: query.margin_left.or(Some(0.8)),
+        margin_right: query.margin_right.or(Some(0.8)),
+        display_header_footer: query.display_header_footer.or(Some(true)),
+        header_template: query.header_template.map(|s| s.to_string()).or_else(|| {
+            Some(r#"<div style="font-size: 10px; text-align: right; width: 100%;">CONFIDENTIAL</div>"#.to_string())
+        }),
+        footer_template: query.footer_template.map(|s| s.to_string()).or_else(|| {
+            Some(r#"<div style="font-size: 10px; text-align: center; width: 100%;">Page <span class="pageNumber"></span></div>"#.to_string())
+        }),
+        offline_mode: query.offline_mode.or(Some(true)),
+        waitsecs: query.waitsecs.or(Some(1)),
+        landscape: query.landscape,
+        print_background: query.print_background,
+        scale: query.scale,
+        page_ranges: query.page_ranges.map(|s| s.to_string()),
+        prefer_css_page_size: query.prefer_css_page_size,
+        ..Default::default()
+    };
+
+    match generate_pdf_from_html(pool.inner(), &request) {
+        Ok(pdf_response) => {
+            let size = pdf_response.size();
+            let content_disposition = pdf_response.content_disposition();
+            Ok(CustomPdfResponse {
+                data: pdf_response.data,
+                request_id,
+                size,
+                content_disposition,
+            })
+        }
+        Err(_) => Err(CustomErrorResponse {
+            status: rocket::http::Status::InternalServerError,
+            request_id,
+            error: "Generation Failed".to_string(),
+            code: "INTERNAL_ERROR".to_string(),
+            retryable: false,
+        }),
+    }
+}
+
+// ============================================================================
 // Legacy Handlers (Backward Compatibility)
 // ============================================================================
 
@@ -468,7 +573,7 @@ fn build_rocket(pool: SharedBrowserPool) -> Rocket<Build> {
         // -----------------------------------------------------------------
         // Option 2: Custom handlers using service functions
         // -----------------------------------------------------------------
-        .mount("/", routes![custom_pdf_handler])
+        .mount("/", routes![custom_pdf_handler, advanced_pdf_handler])
         // -----------------------------------------------------------------
         // Option 3: Manual browser control
         // -----------------------------------------------------------------
@@ -541,6 +646,7 @@ async fn main() -> Result<(), rocket::Error> {
     log::info!("  Custom handlers:");
     log::info!("    GET  http://localhost:8000/custom/pdf?url=https://example.com");
     log::info!("    GET  http://localhost:8000/manual/pdf");
+    log::info!("    GET  http://localhost:8000/advanced/pdf");
     log::info!("");
     log::info!("  Legacy handlers (backward compatibility):");
     log::info!("    GET  http://localhost:8000/legacy/pdf");

@@ -279,6 +279,57 @@ pub struct PdfFromUrlRequest {
     /// print-friendly output where backgrounds are not desired.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub print_background: Option<bool>,
+
+    // ==========================================
+    // Advanced PDF Print Configuration (CDP)
+    // ==========================================
+    /// Scale of the webpage rendering. (Default: 1.0)
+    #[serde(default)]
+    pub scale: Option<f64>,
+
+    /// Paper width in inches.
+    #[serde(default)]
+    pub paper_width: Option<f64>,
+
+    /// Paper height in inches.
+    #[serde(default)]
+    pub paper_height: Option<f64>,
+
+    /// Top margin in inches.
+    #[serde(default)]
+    pub margin_top: Option<f64>,
+
+    /// Bottom margin in inches.
+    #[serde(default)]
+    pub margin_bottom: Option<f64>,
+
+    /// Left margin in inches.
+    #[serde(default)]
+    pub margin_left: Option<f64>,
+
+    /// Right margin in inches.
+    #[serde(default)]
+    pub margin_right: Option<f64>,
+
+    /// Display header and footer.
+    #[serde(default)]
+    pub display_header_footer: Option<bool>,
+
+    /// HTML template for the print header.
+    #[serde(default)]
+    pub header_template: Option<String>,
+
+    /// HTML template for the print footer.
+    #[serde(default)]
+    pub footer_template: Option<String>,
+
+    /// Paper ranges to print, e.g., '1-5, 8, 11-13'.
+    #[serde(default)]
+    pub page_ranges: Option<String>,
+
+    /// Prefer page size as defined by CSS.
+    #[serde(default)]
+    pub prefer_css_page_size: Option<bool>,
 }
 
 impl PdfFromUrlRequest {
@@ -596,6 +647,67 @@ pub struct PdfFromHtmlRequest {
     /// Would resolve the image to `https://example.com/images/logo.png`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
+
+    // ==========================================
+    // Advanced PDF Print Configuration (CDP)
+    // ==========================================
+    /// Scale of the webpage rendering. (Default: 1.0)
+    #[serde(default)]
+    pub scale: Option<f64>,
+
+    /// Paper width in inches.
+    #[serde(default)]
+    pub paper_width: Option<f64>,
+
+    /// Paper height in inches.
+    #[serde(default)]
+    pub paper_height: Option<f64>,
+
+    /// Top margin in inches.
+    #[serde(default)]
+    pub margin_top: Option<f64>,
+
+    /// Bottom margin in inches.
+    #[serde(default)]
+    pub margin_bottom: Option<f64>,
+
+    /// Left margin in inches.
+    #[serde(default)]
+    pub margin_left: Option<f64>,
+
+    /// Right margin in inches.
+    #[serde(default)]
+    pub margin_right: Option<f64>,
+
+    /// Display header and footer.
+    #[serde(default)]
+    pub display_header_footer: Option<bool>,
+
+    /// HTML template for the print header.
+    #[serde(default)]
+    pub header_template: Option<String>,
+
+    /// HTML template for the print footer.
+    #[serde(default)]
+    pub footer_template: Option<String>,
+
+    /// Paper ranges to print, e.g., '1-5, 8, 11-13'.
+    #[serde(default)]
+    pub page_ranges: Option<String>,
+
+    /// Prefer page size as defined by CSS.
+    #[serde(default)]
+    pub prefer_css_page_size: Option<bool>,
+
+    // ==========================================
+    // Security & Isolation Configuration
+    // ==========================================
+    /// If true, forces the Headless Chrome tab into Offline Mode via CDP.
+    /// Inline JS (charting, DOM manipulation) succeeds, but all `fetch`
+    /// and network requests (SSRF vectors) immediately fail with `ERR_INTERNET_DISCONNECTED`.
+    /// HIGHLY RECOMMENDED for data:text/html workloads to prevent local data exfiltration.
+    #[serde(default)]
+    pub offline_mode: Option<bool>,
 }
 
 impl PdfFromHtmlRequest {
@@ -1538,6 +1650,7 @@ mod tests {
             landscape: Some(true),
             download: Some(true),
             print_background: Some(false),
+            ..Default::default()
         };
 
         assert_eq!(request.filename_or_default(), "custom.pdf");

@@ -146,6 +146,12 @@ pub struct BrowserPoolConfig {
     /// - Should be at least `warmup_count * ~5 seconds` per browser
     /// - Increase if running on slow hardware or with many warmup browsers
     pub warmup_timeout: Duration,
+
+    /// Interval between pre-created browser startups during warmup.
+    ///
+    /// Distributes expiration intervals so the entire pool doesn't crash simultaneously.
+    /// Default: 30 seconds
+    pub warmup_stagger: Duration,
 }
 
 impl Default for BrowserPoolConfig {
@@ -181,6 +187,7 @@ impl Default for BrowserPoolConfig {
             browser_ttl: Duration::from_secs(3600), // 1 hour
             max_ping_failures: 3,
             warmup_timeout: Duration::from_secs(60),
+            warmup_stagger: Duration::from_secs(30),
         }
     }
 }
@@ -372,6 +379,16 @@ impl BrowserPoolConfigBuilder {
     /// ```
     pub fn warmup_timeout(mut self, timeout: Duration) -> Self {
         self.config.warmup_timeout = timeout;
+        self
+    }
+
+    /// Set warmup stagger interval.
+    ///
+    /// # Parameters
+    ///
+    /// * `stagger` - Delay between browser spawns during initial warmup.
+    pub fn warmup_stagger(mut self, stagger: Duration) -> Self {
+        self.config.warmup_stagger = stagger;
         self
     }
 

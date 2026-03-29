@@ -40,11 +40,10 @@ Each example:
 1. Creates a browser pool with 3 browsers
 2. Warms up the pool
 3. Starts a web server with a `/pdf` endpoint
-4. When you visit `/pdf`, it:
-   - Gets a browser from the pool
-   - Navigates to https://google.com
-   - Generates a PDF
-   - Returns the PDF as a download
+4. Available endpoints demonstrated:
+   - `GET /pdf?url=https://google.com` - Standard URL to PDF
+   - `POST /pdf/html` - Standard HTML payloads
+   - `GET /advanced/pdf?margin_top=1.0&offline_mode=true` - Enterprise print profiling (margins, templates, scale) and zero-trust SSRF defense via dynamic querystring overrides.
 5. Handles graceful shutdown on Ctrl+C
 
 ## Customizing

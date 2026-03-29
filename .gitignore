@@ -61,3 +61,8 @@ logs/
 /fuzz/target/
 /fuzz/corpus/
 /fuzz/artifacts/
+
+# Local metadata & Agent state
+.planning/
+.agent/
+.gemini/

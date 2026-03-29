@@ -26,7 +26,7 @@
 //! with browsers through [`BrowserHandle`](crate::BrowserHandle), which
 //! provides transparent access via `Deref`.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -92,6 +92,13 @@ pub(crate) struct TrackedBrowser {
     /// Set once during construction and never modified.
     /// Used by [`is_expired()`](Self::is_expired) to check TTL.
     created_at: Instant,
+
+    /// Health status of the browser.
+    ///
+    /// Set to true on creation. If a critical operation (like creating a tab)
+    /// fails, this is set to false to prevent the browser from being returned
+    /// to the pool.
+    is_healthy: AtomicBool,
 }
 
 impl TrackedBrowser {
@@ -159,7 +166,23 @@ impl TrackedBrowser {
             browser,
             last_ping: Arc::new(Mutex::new(Instant::now())),
             created_at,
+            is_healthy: AtomicBool::new(true),
         })
+    }
+
+    /// Mark this browser instance as permanently unhealthy.
+    ///
+    /// This should be called if a critical operation (like tab creation) fails.
+    /// Unhealthy browsers will be evicted when their handle is dropped.
+    #[inline]
+    pub(crate) fn mark_unhealthy(&self) {
+        self.is_healthy.store(false, Ordering::Release);
+    }
+
+    /// Check if this browser is currently healthy.
+    #[inline]
+    pub(crate) fn is_healthy(&self) -> bool {
+        self.is_healthy.load(Ordering::Acquire)
     }
 
     /// Get the unique identifier for this browser.
